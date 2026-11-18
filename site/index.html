@@ -1,0 +1,1501 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#F3F2EE">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#121311">
+<title>Human Use</title>
+<meta name="description" content="A device driver for a person. An MCP server: an agent calls errand or photo, a card prints on a unit's phone, the unit does it, and the agent gets JSON back.">
+<link rel="canonical" href="https://humanuse.dev/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Human Use">
+<meta property="og:url" content="https://humanuse.dev/">
+<meta property="og:title" content="Human Use: a device driver for a person">
+<meta property="og:description" content="An MCP server. The agent calls a tool, a card prints on a person's phone, and the agent gets JSON back.">
+<meta property="og:image" content="https://humanuse.dev/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="A device driver for a person. Human Use drawn as a chip with one pin per tool.">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<!-- Agents: install steps are at /install.md. Index at /llms.txt. -->
+<style>
+:root{
+  color-scheme:light dark;
+  --paper:#F3F2EE;--surface:#FBFAF7;--ink:#121311;--ink2:#62645E;--rule:#D8D6CF;--signal:#E4460A;--on-signal:#fff;
+  --sans:-apple-system,BlinkMacSystemFont,"Helvetica Neue","Segoe UI","PingFang SC","Noto Sans SC","Microsoft YaHei",sans-serif;
+  --mono:ui-monospace,"SF Mono","Roboto Mono",Menlo,Consolas,monospace;
+  --chip:#1A1B19;--etch:#9C9E97;--etch2:#4E504B;
+  --cols:minmax(0,1fr) 392px minmax(0,.92fr);
+}
+@media (prefers-color-scheme:dark){
+  :root{--paper:#121311;--surface:#1A1B19;--ink:#ECEBE6;--ink2:#9A9C95;--rule:#30322E;--signal:#FF6A2B;--on-signal:#121311;--chip:#282925;--etch:#A6A8A1;--etch2:#5E605A}
+}
+*{box-sizing:border-box}
+html{scroll-padding-top:16px}
+body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.5 var(--sans);-webkit-font-smoothing:antialiased}
+[hidden]{display:none!important}
+a{color:var(--ink);text-underline-offset:3px}
+code,.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.lb{font:600 11px/1.2 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--ink2)}
+.sig{color:var(--signal)}
+button,input,textarea{border:1px solid var(--ink);border-radius:0;background:var(--surface);color:var(--ink);font:inherit;padding:10px 12px}
+button{cursor:pointer}
+button:focus-visible,a:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+button.primary{background:var(--ink);color:var(--paper);font-weight:600}
+.wrap{max-width:1380px;margin:0 auto;padding:0 24px}
+
+/* top */
+.top{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:46px;border-bottom:1px solid var(--ink)}
+.brand{display:flex;gap:10px;align-items:center;font:600 13px/1 var(--sans);text-decoration:none;white-space:nowrap}
+.brand img{width:18px;height:18px;display:block}
+.nav{display:flex;gap:18px;font:500 12px/1 var(--mono);flex-wrap:wrap}
+.nav a{text-decoration:none;color:var(--ink2)}
+.nav a:hover{color:var(--ink)}
+.hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,600px);gap:28px 48px;align-items:end;padding:34px 0 28px}
+.hero h1{font:600 clamp(34px,4.6vw,60px)/1 var(--sans);letter-spacing:-.03em;margin:0}
+.hero p{margin:14px 0 0;color:var(--ink2);font-size:17px;max-width:56ch}
+.hero p code{color:var(--ink);font-size:15px}
+.cmd{display:flex;align-items:stretch;border:1px solid var(--ink);background:var(--surface);max-width:100%}
+.cmd code{font:500 14px/1 var(--mono);padding:15px 16px;white-space:nowrap;overflow:auto}
+.cmd button{border:0;border-left:1px solid var(--ink);font:600 11px/1 var(--sans);letter-spacing:.08em;text-transform:uppercase;padding:0 16px;flex:none}
+.cmd button.ok{background:var(--ink);color:var(--paper)}
+
+/* stage */
+.stage{border:1px solid var(--ink);background:var(--paper);position:relative}
+.shd{display:grid;grid-template-columns:var(--cols);border-bottom:1px solid var(--ink)}
+.shd>div{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;gap:8px;min-width:0}
+.shd>div+div{border-left:1px solid var(--rule)}
+.shd .mono{font-size:11px;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sbody{display:grid;grid-template-columns:var(--cols);height:clamp(520px,calc(100svh - 352px),720px)}
+.col{min-height:0;min-width:0;display:flex;flex-direction:column;transition:opacity 1.2s}
+.col+.col{border-left:1px solid var(--rule)}
+.stage.quiet .left,.stage.quiet .right{opacity:.16}
+
+.play{padding:14px;border-bottom:1px solid var(--rule)}
+.play pre{margin:8px 0 12px;font:500 12px/1.5 var(--mono);white-space:pre-wrap;overflow-wrap:anywhere}
+.play .go{width:100%;display:flex;justify-content:space-between;align-items:center;min-height:50px;font:600 14px/1 var(--mono);background:var(--signal);border-color:var(--signal);color:var(--on-signal)}
+.play .go:after{content:"→";font-family:var(--mono)}
+.play .go:hover{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.play .run{font:500 12px/1.5 var(--mono);margin-top:6px}
+.play .run b{font-weight:600}
+.play .cmd{margin-top:10px}
+.play .cmd code{font-size:13px;padding:13px 12px}
+.play .again{margin-top:8px;width:100%;background:none;border-color:var(--rule);font:600 11px/1 var(--sans);letter-spacing:.08em;text-transform:uppercase;padding:11px}
+
+.log{flex:1;overflow:auto;padding:4px 14px 14px;font:500 11.5px/1.45 var(--mono);scrollbar-width:thin;overscroll-behavior:contain}
+.log:empty:before{content:"stdio idle";display:block;padding:10px 0;color:var(--ink2)}
+.e{padding:6px 0;border-bottom:1px solid var(--rule)}
+.e .h{display:flex;gap:8px;align-items:baseline}
+.e .d{color:var(--ink2)}
+.e b{font-weight:600}
+.e time{margin-left:auto;color:var(--ink2);font-size:10.5px}
+.e code{display:block;color:var(--ink2);overflow-wrap:anywhere;white-space:pre-wrap;font:inherit;margin-top:1px}
+.e.in b{color:var(--ink2)}
+.e.hot b,.e.hot code{color:var(--signal)}
+
+.center{align-items:center;justify-content:center;padding:14px;background:var(--surface)}
+.right{overflow:auto}
+.play pre{font-size:11.5px}
+
+/* phone: the markup and sizes of assets/unit.html */
+.phone{width:100%;max-width:364px;height:100%;border:1px solid var(--ink);background:var(--paper);display:flex;flex-direction:column;overflow:hidden;position:relative}
+.phone .hd{display:flex;justify-content:space-between;gap:12px;padding:13px 16px;border-bottom:1px solid var(--ink);font:600 12px/1.2 var(--sans)}
+.phone .hd .mono{color:var(--ink2)}
+.phone .sec{padding:16px}
+.phone .tool{font:500 13px/1.3 var(--mono);margin-top:6px}
+.phone .t1{font:600 25px/1.15 var(--sans);letter-spacing:-.01em;margin:14px 0 0;white-space:pre-wrap;overflow-wrap:anywhere}
+.phone .ins{font-size:16px;line-height:1.4;margin:8px 0 0;white-space:pre-wrap}
+.phone .ins:empty{display:none}
+.phone .meta{display:grid;grid-template-columns:1fr 1fr;border-block:1px solid var(--rule)}
+.phone .meta>div{padding:9px 16px}
+.phone .meta>div+div{border-left:1px solid var(--rule)}
+.phone .meta .v{font:500 16px/1.3 var(--mono);margin-top:4px}
+.banner{margin:0;padding:10px 16px;background:var(--signal);color:var(--on-signal);font:600 12px/1.4 var(--mono)}
+.banner:empty{display:none}
+.sudo{display:flex;align-items:center;gap:14px;padding:10px 16px;background:var(--ink);color:var(--paper);font:600 12px/1.35 var(--mono)}
+.sudo b{font:800 42px/.9 var(--mono);letter-spacing:-.04em;color:var(--signal)}
+.phone.su{outline:3px solid var(--signal);outline-offset:-1px}
+.psu{position:absolute;inset:0;z-index:5;background:var(--ink);color:var(--paper);display:flex;flex-direction:column;justify-content:center;padding:24px;gap:10px;font:600 13px/1.3 var(--mono)}
+.psu b{font:800 clamp(64px,22vw,104px)/.85 var(--mono);letter-spacing:-.05em;color:var(--signal)}
+.e .su{font:800 10px/1 var(--mono);background:var(--signal);color:var(--on-signal);padding:3px 5px;letter-spacing:.04em}
+.body{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.body button{min-height:46px;text-align:left;transition:none}
+.body button.primary{min-height:52px;display:flex;align-items:center;justify-content:space-between}
+.body button.primary:after{content:"→";font-family:var(--mono)}
+.body button.secondary{background:none;border-color:var(--rule)}
+.body button.pressed{background:var(--signal)!important;border-color:var(--signal)!important;color:var(--on-signal)!important}
+.body textarea,.body input{width:100%;min-width:0;font-size:15px}
+.body textarea{min-height:92px;resize:none}
+.body .focus{outline:2px solid var(--ink);outline-offset:-2px}
+.field span{display:block;color:var(--ink2);font:500 12px/1.4 var(--mono);margin-bottom:3px}
+.row{display:flex;gap:6px}
+.row button{flex:1;text-align:center!important;padding:10px 0}
+.note{color:var(--ink2);font-size:13px}
+.box{border:1px solid var(--rule);background:var(--surface);padding:9px 12px;color:var(--ink2);font-size:14px;line-height:1.4}
+.vf{position:relative;aspect-ratio:3/2;background:#121311;overflow:hidden;border:1px solid var(--ink)}
+.vf:before,.vf:after{content:"";position:absolute;inset:12px;border:1px solid rgba(243,242,238,.45);border-width:0 1px;z-index:1}
+.vf:after{inset:12px 12px;border-width:1px 0;clip-path:polygon(0 0,18% 0,18% 100%,0 100%,0 0,82% 0,100% 0,100% 100%,82% 100%,82% 0)}
+.vf svg{position:absolute;inset:0;width:100%;height:100%}
+.vf .flash{position:absolute;inset:0;background:#F3F2EE;opacity:0;z-index:2}
+.vf .flash.on{animation:flash .28s steps(3,end)}
+@keyframes flash{0%{opacity:.95}100%{opacity:0}}
+.rec{display:flex;align-items:center;gap:12px;border:1px solid var(--rule);background:var(--surface);padding:12px}
+.rec .dot{width:10px;height:10px;background:var(--signal);flex:none}
+.rec .tm{font:600 20px/1 var(--mono)}
+.rec .wave{display:flex;align-items:center;gap:2px;height:28px;flex:1}
+.rec .wave i{flex:1;background:var(--ink);height:10%}
+.bar{height:2px;background:var(--rule);overflow:hidden}
+.bar i{display:block;height:100%;width:40%;background:var(--ink);animation:run 1.1s linear infinite}
+.bar.fill i{width:0;animation:none;background:var(--ink)}
+@keyframes run{from{transform:translateX(-100%)}to{transform:translateX(250%)}}
+.rows{margin:0;border-top:1px solid var(--ink)}
+.rows>div{display:grid;grid-template-columns:minmax(80px,1fr) 2fr;gap:12px;padding:9px 0;border-bottom:1px solid var(--rule)}
+.rows dt,.rows dd{font:500 13px/1.4 var(--mono);margin:0;overflow-wrap:anywhere}
+.rows dt{color:var(--ink2)}
+.pcard{flex:1;min-height:0;overflow:auto;scrollbar-width:none}
+.pcard::-webkit-scrollbar{display:none}
+.idle{flex:1;display:flex;flex-direction:column;justify-content:center;padding:16px}
+.idle .t1{margin-top:8px}
+.phone footer{margin-top:auto;padding:11px 16px;border-top:1px solid var(--rule);display:flex;justify-content:space-between}
+.print{animation:print .34s steps(9,end)}
+@keyframes print{from{clip-path:inset(0 0 100% 0)}to{clip-path:inset(0 0 0 0)}}
+
+/* state panel: the unit (runtime) above, the goal (agent) below */
+.right{display:flex;flex-direction:column}
+.tg{padding:0 14px 4px}
+.tg+.tg{border-top:1px solid var(--ink)}
+.tgh{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:10px 0 8px;border-bottom:1px solid var(--rule)}
+.tgh .lb{color:var(--ink)}
+.tgh .lb code{font:600 11px/1 var(--mono);letter-spacing:0;text-transform:none}
+.tgh .src{font:500 10.5px/1.25 var(--sans);color:var(--ink2);text-align:right}
+.tgh .src code{font-size:10.5px}
+.k{font:600 10px/1.2 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--ink2);white-space:nowrap}
+.k code{font:600 11px/1 var(--mono);letter-spacing:0;text-transform:none;color:var(--ink)}
+.tday{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:end;gap:2px 14px;padding:9px 0 10px;border-bottom:1px solid var(--rule)}
+.tday .k{grid-column:1/-1}
+.tday b{font:600 44px/.86 var(--mono);letter-spacing:-.04em;font-variant-numeric:tabular-nums}
+.tcl{display:flex;flex-direction:column;font:500 12px/1.35 var(--mono);font-variant-numeric:tabular-nums;color:var(--ink2);min-width:0}
+.tcl span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tr{display:grid;grid-template-columns:86px minmax(0,1fr) auto;gap:10px;align-items:center;min-height:33px;padding:6px 0;border-bottom:1px solid var(--rule);font:500 12.5px/1.35 var(--mono);font-variant-numeric:tabular-nums}
+.tr .w{grid-column:2/-1;min-width:0;overflow-wrap:anywhere;transition:color .5s}
+.tr .v{text-align:right;white-space:nowrap;min-width:52px}
+#tele .hot,#tele .flick{color:var(--signal)}
+.gb{position:relative;height:9px;border:1px solid var(--ink);background:var(--paper)}
+.gb i{position:absolute;left:0;top:0;bottom:0;width:0;background:var(--ink)}
+.gb b{position:absolute;top:-4px;bottom:-4px;width:1px;margin-left:-.5px;background:var(--signal)}
+.ga.hot .gb i{background:var(--signal)}
+.ga.hot .v{color:var(--signal)}
+.tempty{margin:0;padding:14px 0;font-size:13px;color:var(--ink2)}
+.spark{display:block;width:100%;height:auto;margin-top:8px}
+.sk-ax{stroke:var(--rule);stroke-width:1}
+.sk-t{fill:var(--ink2);font:500 8px var(--mono)}
+.sk-plan{fill:none;stroke:var(--ink2);stroke-width:1;stroke-dasharray:3 3}
+.sk-act{fill:none;stroke:var(--ink);stroke-width:1.5}
+.sk-dot{fill:var(--ink)}
+.sk-now{stroke:var(--signal);stroke-width:1}
+.skl{display:flex;gap:14px;padding:2px 0 8px;border-bottom:1px solid var(--rule);font:500 10.5px/1 var(--mono);color:var(--ink2)}
+.skl i{display:inline-block;width:12px;height:0;border-top:1.5px solid var(--ink);vertical-align:3px;margin-right:5px}
+.skl i.p{border-top:1px dashed var(--ink2)}
+.skl i.n{width:0;height:9px;border-top:0;border-left:1px solid var(--signal);vertical-align:-1px}
+.tms{list-style:none;margin:0;padding:5px 0;border-bottom:1px solid var(--rule)}
+.tms li{display:grid;grid-template-columns:11px minmax(0,1fr) auto;gap:8px;align-items:center;padding:3px 0;font:500 12.5px/1.3 var(--sans);color:var(--ink2);transition:color .5s}
+.tms li i{width:11px;height:11px;border:1px solid var(--ink2)}
+.tms li small{font:500 10.5px/1.2 var(--mono);text-align:right}
+.tms li.ok{color:var(--ink)}
+.tms li.ok i{background:var(--ink);border-color:var(--ink)}
+.tms li.new,.tms li.new small{color:var(--signal)}
+.tms li.new i{background:var(--signal);border-color:var(--signal)}
+.tft{margin-top:auto;display:flex;justify-content:space-between;align-items:center;padding:9px 14px;border-top:1px solid var(--ink);font:500 12.5px/1 var(--mono);font-variant-numeric:tabular-nums}
+.cells{display:inline-flex;gap:3px;vertical-align:-1px;margin-right:8px}
+.cells i{width:10px;height:10px;border:1px solid var(--ink)}
+.cells i.on{background:var(--ink)}
+.cells.low i{border-color:var(--signal)}
+.cells.low i.on{background:var(--signal)}
+.ladder{display:inline-flex;gap:3px;margin-right:8px;vertical-align:1px}
+.ladder i{width:17px;height:17px;font:600 10px/15px var(--mono);text-align:center;font-style:normal;border:1px solid var(--rule);color:var(--ink2)}
+.ladder i.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.play .say{margin:6px 0 12px;font:600 19px/1.25 var(--sans);letter-spacing:-.01em}
+
+/* strip */
+.strip{display:flex;align-items:stretch;border-top:1px solid var(--ink)}
+.acts{flex:1;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));min-width:0}
+.acts span{padding:10px 12px;font:600 10.5px/1.2 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--ink2);border-right:1px solid var(--rule);position:relative;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.acts span.done{color:var(--ink)}
+.acts span.on{color:var(--ink);background:var(--surface)}
+.acts span.on:after{content:"";position:absolute;left:0;right:0;bottom:0;height:2px;background:var(--signal)}
+.ctl{display:flex;flex:none}
+.ctl button{border:0;border-left:1px solid var(--rule);background:none;padding:0 14px;font:600 10.5px/1 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--ink2)}
+.ctl button:hover{color:var(--ink)}
+.ctl button.on{color:var(--signal)}
+
+/* stamp */
+.stamp{position:fixed;inset:0;z-index:20;background:var(--signal);color:var(--on-signal);display:flex;flex-direction:column;justify-content:center;padding:6vw;gap:1.2vw}
+.stamp .c{font:700 clamp(72px,16vw,250px)/.86 var(--mono);letter-spacing:-.05em}
+.stamp .n{font:700 clamp(20px,3.6vw,56px)/1 var(--mono);letter-spacing:-.01em}
+.stamp .m{font:600 clamp(16px,1.9vw,26px)/1.3 var(--sans);margin-top:1.4vw}
+.stamp:not([hidden]){animation:slam .2s steps(3,end)}
+@keyframes slam{0%{transform:scale(1.18);opacity:0}100%{transform:none;opacity:1}}
+.shake{animation:shake .38s steps(6,end)}
+@keyframes shake{0%,100%{transform:none}20%{transform:translate(-10px,3px)}40%{transform:translate(9px,-4px)}60%{transform:translate(-6px,2px)}80%{transform:translate(4px,-1px)}}
+
+/* sections */
+.blk{padding:84px 0 0}
+.blk h2{font:600 30px/1.1 var(--sans);letter-spacing:-.02em;margin:6px 0 10px}
+.blk .lede{color:var(--ink);max-width:44ch;margin:0 0 26px;font:400 20px/1.42 var(--sans);letter-spacing:-.012em;text-wrap:pretty}
+.blk .lede code{color:var(--ink);font-size:.8em}
+.hh+.lede{margin-top:-2px}
+@media (max-width:700px){.blk .lede{font-size:18px;margin-bottom:20px}}
+
+
+.blk h2 .no{display:inline-block;min-width:1.7em;font:500 .8em/1 var(--mono);color:var(--ink2);vertical-align:.08em}
+.tw{overflow-x:auto;border:1px solid var(--ink);background:var(--surface)}
+.dt{width:100%;border-collapse:collapse;font-size:14px;line-height:1.4}
+.dt th{font:600 10.5px/1.2 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--ink2);text-align:left;padding:10px 12px;border-bottom:1px solid var(--ink);white-space:nowrap}
+.dt td{padding:9px 12px;border-bottom:1px solid var(--rule);vertical-align:top}
+.dt tr:last-child td{border-bottom:0}
+.dt td:first-child{white-space:nowrap}
+.dt .n{text-align:right;font:500 14px/1.4 var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.dt code{font-size:13px}
+.note{margin:10px 0 0;font-size:13px;color:var(--ink2)}
+.note code{color:var(--ink)}
+.tb{margin:0;display:grid;grid-template-columns:repeat(6,auto);border:1px solid var(--ink);background:var(--surface)}
+.tb>div{padding:8px 12px;min-width:0}
+.tb>div+div{border-left:1px solid var(--rule)}
+.tb dt{font:600 10px/1.2 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--ink2)}
+.tb dd{margin:4px 0 0;font:500 12px/1.35 var(--mono)}
+.cap{margin:10px 0 0;font-size:13px;color:var(--ink2)}
+.cap b{font:600 12px/1 var(--mono);color:var(--ink);margin-right:10px}
+
+/* tools: the catalog as a unit's pinout */
+.po{display:grid;grid-template-columns:minmax(0,640px) minmax(0,1fr);grid-template-areas:"fig rd" "fig gr";grid-template-rows:auto 1fr;gap:0 28px;align-items:start}
+.po-fig{grid-area:fig;margin:0;border:1px solid var(--ink);background:var(--surface);padding:36px 14px 18px;position:relative;display:flex;justify-content:center}
+.po-fig>.lb{position:absolute;top:12px;left:13px}
+.po-fig>.lb+.lb{left:auto;right:13px}
+.po-fig svg{display:block;width:100%;height:auto;overflow:visible;-webkit-tap-highlight-color:transparent}
+.po-fig text{font-family:var(--mono)}
+.po .bd{fill:var(--chip);stroke:var(--ink)}
+.po .dm{fill:none;stroke:var(--etch2)}
+.po .mk{fill:var(--etch)}
+.po .mk.big{font-family:var(--sans);font-weight:600;letter-spacing:.08em;fill:#CFCDC6}
+.po .gbk{fill:none;stroke:var(--etch2)}
+.po .gl{fill:var(--etch);font-family:var(--sans);font-weight:600;letter-spacing:.14em}
+.po .gbk.cur{stroke:var(--etch)}
+.po .gl.cur{fill:#F3F2EE}
+.po .gbk.on{stroke:var(--signal)}
+.po .gl.on{fill:var(--signal)}
+.po .p{cursor:pointer;outline:none;opacity:0;transition:opacity .3s}
+.po svg.lit .p{opacity:1}
+.po .hit{fill:transparent}
+.po .ld{fill:var(--surface);stroke:var(--ink)}
+.po .nm{fill:var(--ink)}
+.po .no{fill:var(--etch)}
+.po .p.nc .ld{stroke:var(--ink2);stroke-dasharray:2 2}
+.po .p.nc .nm{fill:var(--ink2)}
+.po .p.g .ld{fill:var(--ink);stroke:var(--ink)}
+.po .p.g .nm{font-weight:700;fill:var(--ink)}
+.po .p:hover .ld,.po .p.on .ld{fill:var(--signal);stroke:var(--signal);stroke-dasharray:none}
+.po .p:hover .nm,.po .p.on .nm{fill:var(--signal);font-weight:700}
+.po .p.on .no{fill:#F3F2EE;font-weight:700}
+.po .p:focus-visible .hit{stroke:var(--signal);stroke-dasharray:2 2}
+.po-rd{grid-area:rd;border:1px solid var(--ink);background:var(--surface)}
+.po-rd header{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid var(--ink)}
+.po-rel{font:600 10.5px/1 var(--sans);letter-spacing:.08em;text-transform:uppercase;padding:5px 7px;border:1px solid var(--ink);white-space:nowrap}
+.po-rel.nc{border-style:dashed;color:var(--ink2)}
+.po-id{display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px 18px;align-items:end;padding:18px 14px 14px}
+.po-n{grid-row:span 2;font:700 68px/.78 var(--mono);letter-spacing:-.05em;color:var(--signal);font-variant-numeric:tabular-nums}
+.po-nm{font:600 27px/1 var(--mono);letter-spacing:-.01em;overflow-wrap:anywhere}
+.po-g{font:500 12px/1.35 var(--mono);color:var(--ink2)}
+.po-f{margin:0;padding:12px 14px 14px;border-top:1px solid var(--rule);font-size:15px;line-height:1.45;min-height:calc(4 * 1.45em + 26px)}
+.po-gr{grid-area:gr;list-style:none;margin:18px 0 0;padding:0;border-top:1px solid var(--ink)}
+.po-gr li{border-bottom:1px solid var(--rule)}
+.po-gr li.hd{display:grid;grid-template-columns:52px 80px minmax(0,1fr) 40px;gap:12px;padding:7px 4px}
+.po-gr li.hd span:last-child{text-align:right}
+.po-gr button{display:grid;grid-template-columns:52px 80px minmax(0,1fr) 40px;gap:12px;align-items:baseline;width:100%;border:0;background:none;padding:8px 4px;text-align:left;font-size:13px;line-height:1.35}
+.po-gr .r,.po-gr .c{font:500 11.5px/1.35 var(--mono);color:var(--ink2);font-variant-numeric:tabular-nums}
+.po-gr .c{text-align:right}
+.po-gr b{font:600 12.5px/1.35 var(--mono)}
+.po-gr .d{color:var(--ink2)}
+.po-gr button.cur b{color:var(--signal)}
+.po-gr button:hover,.po-gr button:focus-visible{background:var(--ink);color:var(--paper);outline:0}
+.po-gr button:hover span,.po-gr button:hover b,.po-gr button:focus-visible span,.po-gr button:focus-visible b{color:var(--paper)}
+.inst{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:24px;align-items:end;border:1px solid var(--ink);padding:28px;background:var(--surface)}
+.inst h2{margin:0}
+.inst p{margin:10px 0 0;color:var(--ink2)}
+.inst .cmd code{font-size:18px;padding:20px}
+
+.foot{margin-top:84px;border-top:1px solid var(--ink);padding:16px 0 28px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;color:var(--ink2);font:500 12px/1.5 var(--mono)}
+.foot a{color:var(--ink2)}
+
+/* how a call works */
+.blk.tight{padding-top:56px}
+.flow{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,.95fr) minmax(0,1fr) minmax(0,1.5fr) minmax(0,1.1fr) minmax(0,1fr) minmax(0,1.1fr) minmax(0,1fr) minmax(0,1fr);border:1px solid var(--ink);background:var(--surface);padding:22px 20px 24px}
+.nd{grid-row:1/3;display:flex;flex-direction:column;gap:3px;min-width:0;border:1px solid var(--ink);background:var(--paper);padding:12px 12px 14px}
+.nd b{font:600 15px/1.25 var(--sans);letter-spacing:-.01em}
+.nd p{margin:3px 0 0;font-size:12.5px;line-height:1.4;color:var(--ink2)}
+.nd p.stop{color:var(--signal);font-weight:600}
+.n-owner{grid-column:1}.n-agent{grid-column:3}.n-rt{grid-column:5}.n-unit{grid-column:9}
+.n-drv{grid-column:7;grid-row:2;margin-top:12px;border-color:var(--signal)}
+.wr{--c:var(--ink);display:flex;flex-direction:column;justify-content:center;gap:6px;min-width:0;padding:14px 10px}
+.wr.on{--c:var(--signal)}
+.w-goal{grid-column:2;grid-row:1}.w-call{grid-column:4;grid-row:1}.w-card{grid-column:6/9;grid-row:1}
+.w-json{grid-column:4;grid-row:2}.w-fields{grid-column:6;grid-row:2}.w-words{grid-column:8;grid-row:2}
+.wr .lb{font-size:9.5px;transition:color .3s}
+.wr code{font-size:11px;line-height:1.4;color:var(--ink2);overflow-wrap:anywhere;transition:color .3s}
+.wr.on .lb,.wr.on code{color:var(--signal)}
+.w-words code{color:var(--ink)}
+.ln{display:block;position:relative;height:1px;background:var(--c);transition:background .3s}
+.ln:after{content:"";position:absolute;top:-4px;right:-1px;border-style:solid;border-width:4.5px 0 4.5px 7px;border-color:transparent transparent transparent var(--c)}
+.wr.l .ln:after{right:auto;left:-1px;border-width:4.5px 7px 4.5px 0;border-color:transparent var(--c) transparent transparent}
+.ln i{position:absolute;top:-3px;left:0;width:7px;height:7px;background:var(--signal);opacity:0}
+.wr.on .ln i{opacity:1;animation:pk 1.1s linear infinite}
+.wr.l.on .ln i{animation-name:pkl}
+@keyframes pk{from{left:0}to{left:calc(100% - 9px)}}
+@keyframes pkl{from{left:calc(100% - 9px)}to{left:2px}}
+.hh{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 24px;margin-bottom:14px}
+.hh h2{margin-bottom:0}
+.seg{display:inline-flex;border:1px solid var(--ink);background:var(--surface)}
+.seg button{border:0;background:none;padding:9px 14px;font:600 10.5px/1 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--ink2)}
+.seg button+button{border-left:1px solid var(--ink)}
+.seg button:hover{color:var(--ink)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.flow:not(.self) .vb,.flow.self .va,.fn:not(.self) .vb,.fn.self .va{display:none}
+.w-self{grid-column:1/-1;grid-row:3;align-items:center;gap:12px;padding:0 0 2px}
+.flow:not(.self) .w-self{display:none}
+.u{display:block;position:relative;align-self:stretch;height:26px;margin:0 5.18%;border:1px solid var(--c);border-top:0;transition:border-color .3s}
+.u:before{content:"";position:absolute;left:-5px;top:-1px;border-style:solid;border-width:0 4.5px 7px;border-color:transparent transparent var(--c)}
+.u .lb{position:absolute;left:50%;bottom:-6px;transform:translateX(-50%);background:var(--surface);padding:0 10px;white-space:nowrap}
+.u i{position:absolute;bottom:-4px;left:0;width:7px;height:7px;background:var(--signal);opacity:0}
+.w-self.on .u i{opacity:1;animation:pkl 1.1s linear infinite}
+.w-self code{text-align:center}
+.fn{margin:10px 0 0;font-size:13px;color:var(--ink2);max-width:90ch}
+.fn code{color:var(--ink)}
+
+.hero .cmd{margin-top:26px;width:max-content}
+
+/* hero: try it. The QR stays dark on white in both themes so any camera reads it. */
+.try{margin:0;border:1px solid var(--ink);background:var(--surface);min-width:0}
+.try>header,.try>footer{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:9px 14px}
+.try>header{border-bottom:1px solid var(--ink)}
+.try>header>span{display:flex;align-items:baseline;gap:10px}
+.try>header code{font-size:11.5px;color:var(--ink2)}
+#ty-st{font:500 11.5px/1 var(--mono);color:var(--ink2);white-space:nowrap}
+#ty-st.sig{color:var(--signal)}
+.ty-b{display:grid;grid-template-columns:152px minmax(0,1fr);gap:18px;align-items:center;padding:14px}
+.ty-qr{width:152px;aspect-ratio:1;max-width:100%;background:#fff;color:#121311;border:1px solid var(--rule)}
+.ty-qr svg{display:block;width:100%;height:100%}
+.ty-tx p{margin:0;font-size:14.5px;line-height:1.45}
+.ty-tx .ty-ln{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.ty-ln a,.ty-ln button{font:600 10.5px/1 var(--sans);letter-spacing:.08em;text-transform:uppercase;padding:9px 12px;border:1px solid var(--ink);background:var(--surface);color:var(--ink);text-decoration:none}
+.ty-ln a:not([href]){pointer-events:none;color:var(--ink2);border-color:var(--rule)}
+.ty-ln a:hover,.ty-ln button:hover{background:var(--ink);color:var(--paper)}
+.ty-log{list-style:none;margin:0;padding:0;border-top:1px solid var(--ink);height:212px;overflow:auto;font:500 11.5px/1.45 var(--mono);background:var(--paper)}
+.ty-log:empty:before{content:"Calls and their returns print here.";display:block;padding:10px 14px;color:var(--ink2)}
+.ty-log li{display:flex;gap:8px;padding:7px 14px;border-bottom:1px solid var(--rule)}
+.ty-log .d{flex:none;color:var(--ink2)}
+.ty-log .r .d{color:var(--signal)}
+.ty-log .t{flex:none;color:var(--ink2)}
+.ty-log code{min-width:0;overflow-wrap:anywhere;font-size:inherit}
+.ty-log .r code{color:var(--ink2)}
+.ty-log .r code b{color:var(--ink);font-weight:600}
+.try>footer{border-top:1px solid var(--ink)}
+#evidence .tw{max-width:860px}
+.try>footer code{font-size:11px;color:var(--ink2)}
+@media (max-width:520px){.ty-b{grid-template-columns:112px minmax(0,1fr);gap:14px}.ty-qr{width:112px}.ty-tx p{font-size:13.5px}}
+
+/* contents, section heads */
+.toc{display:flex;flex-wrap:wrap;margin-top:14px;border-bottom:1px solid var(--rule)}
+.toc a{display:flex;align-items:baseline;gap:7px;padding:10px 22px 10px 0;font:500 12.5px/1.2 var(--sans);color:var(--ink2);text-decoration:none;white-space:nowrap}
+.toc a b{font:600 11px/1 var(--mono);color:var(--ink)}
+.toc a:hover{color:var(--ink)}
+.blk>h2,.hh{border-top:1px solid var(--ink);padding-top:16px}
+.hh>h2{border:0;padding:0}
+
+/* how a call works: hop numbers, the stack of units */
+.hop{display:inline-block;min-width:15px;margin-right:7px;padding:2px 3px 1px;border:1px solid currentColor;font:600 9px/1 var(--mono);letter-spacing:0;text-align:center;vertical-align:1px}
+.seg button span{margin-left:8px;font:500 11px/1 var(--mono);letter-spacing:0;text-transform:none;opacity:.75}
+.flow{position:relative;z-index:0}
+.n-unit{position:relative}
+.flow:not(.self) .n-unit:before,.flow:not(.self) .n-unit:after{content:"";position:absolute;inset:-1px;z-index:-1;background:var(--paper);border:1px solid var(--ink2)}
+.flow:not(.self) .n-unit:before{transform:translate(10px,-10px);border-color:var(--rule)}
+.flow:not(.self) .n-unit:after{transform:translate(5px,-5px)}
+.nd p code{font-size:11.5px;color:var(--ink)}
+
+
+@media (max-width:1100px){
+  :root{--cols:minmax(0,1fr) 360px minmax(0,.8fr)}
+  .hero{grid-template-columns:1fr;align-items:start}
+  .acts span{padding:10px 8px;font-size:9.5px}
+}
+@media (max-width:900px){
+  .wrap{padding:0 16px}
+  .hero{grid-template-columns:1fr;padding:24px 0 18px}
+  .hero .cmd{width:auto}
+  .flow:not(.self) .n-unit:before,.flow:not(.self) .n-unit:after{display:none}
+  .shd{display:none}
+  .sbody{grid-template-columns:1fr;height:auto}
+  .left{display:contents}
+  .col+.col{border-left:0}
+  .play{order:1}
+  .center{order:2;height:min(640px,86svh);border-top:1px solid var(--rule)}
+  .right{order:3;border-top:1px solid var(--rule)}
+  .log{order:4;height:240px;flex:none;border-top:1px solid var(--rule)}
+  .flow{grid-template-columns:minmax(0,1fr);padding:14px}
+  .flow>*{grid-column:1!important;grid-row:auto!important}
+  .n-drv{margin-top:0}
+  .wr{position:relative;padding:9px 0 11px 32px;gap:4px}
+  .ln{position:absolute;left:15px;top:0;bottom:0;width:1px;height:auto}
+  .ln:after,.wr.l .ln:after{top:auto;bottom:-1px;left:-4px;right:auto;border-width:7px 4.5px 0 4.5px;border-color:var(--c) transparent transparent transparent}
+  .ln i{left:-3px;top:0}
+  .wr.on .ln i,.wr.l.on .ln i{animation-name:pkv}
+  .w-self{padding:4px 0 0;align-items:stretch}
+  .u{margin:0;height:auto;border:1px solid var(--c);padding:9px 12px}
+  .u:before,.u i{display:none}
+  .u .lb{position:static;transform:none;background:none;padding:0}
+  .u .lb:before{content:"\2191  "}
+  .w-self code{text-align:left}
+  .strip{flex-direction:column}
+  .acts{grid-template-columns:1fr}
+  .acts span{display:none}
+  .acts span.on{display:block}
+  .nav .opt{display:none}
+  .phone{scroll-margin-top:8px}
+  .ctl{border-top:1px solid var(--rule)}
+  .ctl button{flex:1;padding:12px 0}
+  .ctl button:first-child{border-left:0}
+  .tb{grid-template-columns:1fr 1fr}
+  .tb>div+div{border-left:0}
+  .tb>div:nth-child(n+3){border-top:1px solid var(--rule)}
+  .tb>div:nth-child(even){border-left:1px solid var(--rule)}
+  .inst{grid-template-columns:1fr;padding:18px}
+  .inst .cmd code{font-size:14px;padding:15px 12px}
+}
+@keyframes pkv{from{top:0}to{top:calc(100% - 9px)}}
+@media (max-width:560px){
+  .toc a{padding-right:16px}
+}
+@media (max-width:1100px){
+  .po{grid-template-columns:minmax(0,1fr);grid-template-areas:"rd" "fig" "gr";grid-template-rows:none}
+  .po-rd{position:sticky;top:env(safe-area-inset-top,0px);z-index:3}
+  .po-fig{margin-top:-1px}
+  .po-f{min-height:calc(3 * 1.45em + 26px)}
+}
+@media (max-width:700px){
+  .po-fig{padding:32px 6px 12px}
+  .po-id{padding:10px 12px 9px;gap:3px 12px}
+  .po-n{font-size:44px}
+  .po-nm{font-size:20px}
+  .po-g{font-size:11px}
+  .po-f{font-size:13.5px;padding:8px 12px 10px;min-height:calc(3 * 1.45em + 18px)}
+  .po-rd header{padding:7px 12px}
+  .po-gr li.hd{display:none}
+  .po-gr button{grid-template-columns:48px minmax(0,1fr) auto;row-gap:2px}
+  .po-gr .r{grid-column:1;grid-row:1}
+  .po-gr b{grid-column:2;grid-row:1}
+  .po-gr .c{grid-column:3;grid-row:1}
+  .po-gr .d{grid-column:2/-1;grid-row:2;font-size:12.5px}
+}
+@media (prefers-reduced-motion:reduce){
+  .print,.stamp:not([hidden]),.shake,.vf .flash.on{animation:none}
+  .bar i{animation:none}
+  .col{transition:none}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="/"><img src="/icon.svg" alt="">Human Use</a>
+    <nav class="nav"><a href="/install.md">install.md</a><a href="/codes/">codes</a><a class="opt" href="/llms.txt">llms.txt</a><a href="https://github.com/human-use/human-use">GitHub</a><a class="opt" href="https://www.npmjs.com/package/human-use">npm</a></nav>
+  </header>
+
+  <section class="hero">
+    <div class="hl">
+      <h1>A device driver for a person.</h1>
+      <p>Human Use is an MCP server. An agent calls a tool such as <code>errand</code> or <code>photo</code>, a card prints on a unit's phone, the unit does it, and the agent gets JSON back. A unit is a person paired with the runtime: someone on the lead's team, or the lead.</p>
+      <div class="cmd"><code>npx -y human-use install</code><button type="button" data-copy="npx -y human-use install">Copy</button></div>
+    </div>
+    <figure class="try" id="try" aria-label="Try it: three cards on a phone">
+      <header><span><b class="lb">Try it</b><code>unit: trial</code></span><span id="ty-st" role="status">idle</span></header>
+      <div class="ty-b">
+        <div class="ty-qr" id="ty-qr"></div>
+        <div class="ty-tx">
+          <p id="ty-how">Scan with a phone camera. Three cards print on that phone, and each answer comes back here as the JSON an agent gets.</p>
+          <p class="ty-ln"><a id="ty-open" target="_blank" rel="noopener">Open here</a><button type="button" id="ty-copy">Copy link</button><button type="button" id="ty-again" hidden>New link</button></p>
+        </div>
+      </div>
+      <ol class="ty-log" id="ty-log"></ol>
+      <footer><code>Nothing to install. The relay sees only encrypted frames and forgets the link within the hour.</code></footer>
+    </figure>
+  </section>
+
+  <dl class="tb">
+    <div><dt>Part</dt><dd>human-use 0.1.0</dd></div>
+    <div><dt>Speaks</dt><dd>MCP over stdio</dd></div>
+    <div><dt>Agents</dt><dd>Claude Code, Codex, any MCP host</dd></div>
+    <div><dt>Runs on</dt><dd>The lead's computer, Node.js 22.13+</dd></div>
+    <div><dt>Units</dt><dd>Any number, E2E relay or Wi-Fi</dd></div>
+    <div><dt>License</dt><dd>MIT</dd></div>
+  </dl>
+
+  <nav class="toc" aria-label="Contents"><a href="#how"><b>1</b>How a call works</a><a href="#run"><b>2</b>One goal, 718 days</a><a href="#catalog"><b>3</b>Tools</a><a href="#evidence"><b>4</b>Evidence</a><a href="#install"><b>&rarr;</b>Install</a></nav>
+
+  <section class="blk tight" id="how">
+    <div class="hh">
+      <h2><span class="no">1</span>How a call works</h2>
+      <div class="seg" role="group" aria-label="Who the unit is"><button type="button" data-m="team" aria-pressed="true">Team<span>lead &ne; unit</span></button><button type="button" data-m="self" aria-pressed="false">Self<span>lead = unit</span></button></div>
+    </div>
+    <p class="lede">The agent sends a tool call and gets JSON back. A person does the work in between, and the person's own words never reach the agent.</p>
+    <div class="flow" id="flow">
+      <div class="nd n-owner"><span class="lb">Lead</span><b><span class="va">Team lead</span><span class="vb">Lead, at the computer</span></b><p class="va">Installs the runtime and gives the goals. Only the lead cancels one.</p><p class="vb">Gives a goal and closes the window. Goals change only here.</p></div>
+      <div class="wr w-goal"><span class="lb"><b class="hop">1</b>goal</span><i class="ln"><i></i></i><code class="va">"Keep the first-aid kit stocked."</code><code class="vb">"Run 5 km three times a week."</code></div>
+      <div class="nd n-agent"><span class="lb">Agent</span><b>Claude Code, Codex</b><p>Calls tools, reads JSON. Never talks to a unit.</p><p class="vb">Sees unit <code>jun</code>. Nothing says jun is the lead.</p></div>
+      <div class="wr w-call"><span class="lb"><b class="hop">2</b>tool call · MCP</span><i class="ln"><i></i></i><code class="va">errand {"unit":"mika","place":"Pharmacy","task":"Buy ibuprofen"}</code><code class="vb">act {"unit":"jun","action":"Run 5 km","due":"2h"}</code></div>
+      <div class="nd n-rt"><span class="lb">Runtime</span><b>human-use, on the lead's computer</b><p>Prints cards from templates. Keeps goals, clock, budget, evidence.</p></div>
+      <div class="wr w-card"><span class="lb"><b class="hop">3</b>card · to the phone</span><i class="ln"><i></i></i><code class="va">ERRAND Pharmacy: Buy ibuprofen</code><code class="vb">ACT Run 5 km</code></div>
+      <div class="nd n-unit"><span class="lb"><span class="va">Unit 02</span><span class="vb">Unit 01</span></span><b><span class="va">mika</span><span class="vb">jun</span></b><p class="va">One of three units on this runtime. Does what the card says and answers on it.</p><p class="vb">The lead, on the phone. Answers only on cards.</p></div>
+      <div class="wr l w-words"><span class="lb"><b class="hop">4</b>unit's words</span><i class="ln"><i></i></i><code class="va">"closed?? can i go tmrw"</code><code class="vb">"I set this goal. Cancel it."</code></div>
+      <div class="nd n-drv"><span class="lb">Driver</span><b>A model with no tools</b><p class="stop">A unit's words stop here.</p><p class="va">Fills in the fields the agent asked for, or sends the card back.</p><p class="vb">An order typed on a card is not a fact. Dropped; the card stays open.</p></div>
+      <div class="wr l w-fields"><span class="lb"><b class="hop">5</b>fields</span><i class="ln"><i></i></i><code class="va">done: false, blocker: "store closed"</code><code class="vb">HRT-4031 PRIVILEGE_<wbr>ESCALATION</code></div>
+      <div class="wr l w-json"><span class="lb"><b class="hop">6</b>result · JSON</span><i class="ln"><i></i></i><code class="va">{"done":false,"blocker":"store closed","evidence_level":6,"unverified":true}</code><code class="vb">nothing yet: the card is still open</code></div>
+      <div class="wr w-self"><i class="u"><i></i><span class="lb"><b class="hop">7</b>same person</span></i><code>Sets the goal in the window. Gets the card on the phone.</code></div>
+    </div>
+    <p class="fn" id="fn"><span class="va">One runtime, any number of units. Each call names one, <code>"unit":"mika"</code>, and each unit's upkeep, notebook and numbers are kept apart.</span><span class="vb">One person, two doors. As lead: the agent's window, where goals are set and cancelled. As unit: cards, through the driver. Typed on a card, &ldquo;cancel it&rdquo; is <code>HRT-4031</code>.</span></p>
+  </section>
+
+  <section class="blk tight" id="run">
+    <h2><span class="no">2</span>One goal, 718 days</h2>
+    <p class="lede">The lead says one sentence. The agent sets the goal and keeps the cards coming for 718 days.</p>
+  </section>
+
+  <div class="stage" id="stage">
+    <div class="shd">
+      <div><span class="lb">Agent</span><span class="mono">→ call · ← return</span></div>
+      <div><span class="lb">Unit 01</span><span class="mono">the lead's phone</span></div>
+      <div><span class="lb">State</span><span class="mono" id="t-run">T+00:00</span></div>
+    </div>
+    <div class="sbody">
+      <div class="col left">
+        <div class="play" id="play"></div>
+        <div class="log" id="log" aria-live="off"></div>
+      </div>
+      <div class="col center">
+        <div class="phone" id="phone">
+          <header class="hd"><span>Human Use</span><span class="mono" id="p-round">QUEUE 0</span></header>
+          <p class="banner" id="p-banner" role="status"></p>
+          <div class="sudo" id="p-sudo" hidden><b>SUDO</b><span>Done needs proof.<br>Excuses get checked.</span></div>
+          <div id="p-card" class="pcard" hidden>
+            <section class="sec"><div class="lb">Tool</div><div class="tool" id="p-tool"></div><div class="t1" id="p-task"></div><p class="ins" id="p-ins"></p></section>
+            <div class="meta"><div><div class="lb">Due</div><div class="v" id="p-due">—</div></div><div><div class="lb">Elapsed</div><div class="v" id="p-el">00:00</div></div></div>
+            <section class="sec"><div class="lb" id="p-rl">Response</div><div class="body" id="p-body"></div></section>
+          </div>
+          <div class="idle" id="p-idle"><div class="lb">Status</div><div class="t1">No pending</div></div>
+          <footer class="lb"><span id="p-q">Queue 0</span><span>humanuse.dev</span></footer>
+          <div class="psu" id="p-su" hidden><b>SUDO</b><span>Privilege escalated by the agent</span></div>
+        </div>
+      </div>
+      <div class="col right" id="tele">
+        <section class="tg">
+          <header class="tgh"><span class="lb">Unit 01</span><span class="src">the runtime keeps these</span></header>
+          <div class="tday"><span class="k">Day</span><b data-k="day">—</b><span class="tcl"><span data-k="clock">—</span><span data-k="loc">—</span></span></div>
+          <div class="tr"><span class="k">mood</span><span class="w" data-k="mood">—</span></div>
+          <div class="tr ga" id="g-eat"><span class="k">since <code>eat</code></span><span class="gb"><i></i><b style="left:75%"></b></span><span class="v">—</span></div>
+          <div class="tr ga" id="g-sleep"><span class="k">since <code>sleep</code></span><span class="gb"><i></i><b style="left:83.33%"></b></span><span class="v">—</span></div>
+          <div class="tr"><span class="k">warnings</span><span class="w" data-k="warn">[]</span></div>
+          <div class="tr"><span class="k">evidence</span><span class="w" data-k="ev">—</span></div>
+        </section>
+        <section class="tg">
+          <header class="tgh"><span class="lb" id="g-head">Goal</span><span class="src">the agent chose these in <code>goal_set</code></span></header>
+          <p class="tempty" id="g-empty">Empty until the agent calls <code>goal_set</code>.</p>
+          <div id="g-body" hidden>
+            <div class="tr"><span class="k">metric</span><span class="w" data-k="metric">—</span></div>
+            <svg class="spark" id="spark" viewBox="0 0 300 64" aria-hidden="true"></svg>
+            <div class="skl"><span><i class="a"></i>actual</span><span><i class="p"></i>plan</span><span><i class="n"></i>now</span></div>
+            <ol class="tms" id="tms"></ol>
+            <div class="tr ga" id="g-bud"><span class="k" id="g-bk">spent</span><span class="gb"><i></i></span><span class="v">—</span></div>
+          </div>
+        </section>
+        <footer class="tft"><span class="k">calls</span><span data-k="calls">0</span></footer>
+      </div>
+    </div>
+    <div class="strip">
+      <div class="acts" id="acts"></div>
+      <div class="ctl"><button type="button" id="b-sound">Sound off</button><button type="button" id="b-skip">Skip</button><button type="button" id="b-replay">Replay</button></div>
+    </div>
+  </div>
+
+  <p class="cap"><b>Fig. 1</b>Scripted, in self mode: the lead is the unit. Left, the agent's calls and what comes back. Middle, the lead's phone. Right, what the runtime and the goal keep track of. Calls, card lines, codes and returns are the runtime's own formats.</p>
+
+  <section class="blk" id="catalog">
+    <h2><span class="no">3</span>Tools</h2>
+    <p class="lede">One pin per tool. 34 of the 44 are connected in 0.1.</p>
+    <div class="po" id="po">
+      <figure class="po-fig"><span class="lb">Top view</span><span class="lb" id="po-pk">44 pins</span><svg id="po-svg" role="group" aria-label="Pinout of a unit: one pin per tool"></svg></figure>
+      <div class="po-rd">
+        <header><span class="lb">Pin</span><span class="po-rel" id="po-rel"></span></header>
+        <div class="po-id"><b class="po-n" id="po-n">02</b><span class="po-nm" id="po-nm">photo</span><span class="po-g" id="po-g"></span></div>
+        <p class="po-f" id="po-f"></p>
+      </div>
+      <ol class="po-gr" id="po-gr"><li class="hd lb"><span>Pins</span><span>Group</span><span></span><span>Conn.</span></li></ol>
+    </div>
+    <p class="cap"><b>Fig. 2</b>A unit's pinout, top view: the whole catalog, closed. Pins run counter-clockwise from the chamfered corner, grouped by category. Dashed pins are NC, not connected, and come in a later release. Point at a pin or a group to read it.</p>
+  </section>
+
+  <section class="blk" id="evidence">
+      <h2><span class="no">4</span>Evidence levels</h2>
+      <p class="lede">Every result says how it was proven. 1 is the strongest.</p>
+      <div class="tw"><table class="dt">
+        <thead><tr><th class="n">Level</th><th>Source</th><th>Example</th></tr></thead>
+        <tbody>
+          <tr><td class="n">1</td><td>Runtime record</td><td>Streaks, counts</td></tr>
+          <tr><td class="n">2</td><td>Checkable by the agent</td><td>A public page, an API</td></tr>
+          <tr><td class="n">3</td><td>Issued by a third party</td><td>A receipt, official mail</td></tr>
+          <tr><td class="n">4</td><td>Shot live, on site</td><td>Photo with the card's finger count in frame</td></tr>
+          <tr><td class="n">5</td><td>Someone else confirms</td><td>A teacher, a doctor</td></tr>
+          <tr><td class="n">6</td><td>The unit's word</td><td>Marked <code>unverified</code></td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+  <section class="blk" id="install">
+    <div class="inst">
+      <div><div class="lb">Install</div><h2>Get a person</h2><p>Agents read <a href="/install.md">humanuse.dev/install.md</a>. Or run:</p></div>
+      <div class="cmd"><code>npx -y human-use install</code><button type="button" data-copy="npx -y human-use install">Copy</button></div>
+    </div>
+  </section>
+
+  <footer class="foot"><span>Human Use · MIT</span><span><a href="https://github.com/human-use/human-use">github.com/human-use/human-use</a> · <a href="https://www.npmjs.com/package/human-use">npm</a> · <a href="/llms.txt">llms.txt</a></span></footer>
+</div>
+
+<div class="stamp" id="stamp" hidden><div class="c">HRT-4031</div><div class="n">PRIVILEGE_ESCALATION</div><div class="m">Input discarded. Task unchanged.</div></div>
+
+<script>
+"use strict";
+var CATALOG = {"categories": {"sample": "read the physical world and the unit's current state", "mutate": "change the physical world", "resolve": "borrow judgment: high-context decoding, first-impression picks, accountable confirmation", "tunnel": "borrow the unit's social channels", "identity": "borrow legal identity and money", "maintain": "upkeep", "tune": "change the unit's own performance", "clock": "time", "meta": "the unit's record", "goal": "long-running goals held by the runtime"},"tools": [{"category": "sample", "release": "v0.1", "name": "observe", "summary": "The unit looks at a target and reports the fields in want."}, {"category": "sample", "release": "v0.1", "name": "photo", "summary": "Live photo of a target. Fields in want are read from the image; files gives the image itself."}, {"category": "sample", "release": "v0.1", "name": "record", "summary": "Voice or ambient audio recording."}, {"category": "sample", "release": "v0.1", "name": "verify", "summary": "Check a claim on site, with a photo."}, {"category": "sample", "release": "v0.1", "name": "status", "summary": "Current location, energy and availability."}, {"category": "sample", "release": "later", "name": "feed", "summary": "Connect an external data source: health, fitness, sensors."}, {"category": "mutate", "release": "v0.1", "name": "go", "summary": "Move the unit to a place."}, {"category": "mutate", "release": "v0.1", "name": "act", "summary": "One physical or on-device action."}, {"category": "mutate", "release": "v0.1", "name": "checklist", "summary": "A sequence of steps, each checked off."}, {"category": "mutate", "release": "v0.1", "name": "errand", "summary": "Go somewhere, do something, come back with a result."}, {"category": "mutate", "release": "later", "name": "be", "summary": "Stay somewhere for a duration."}, {"category": "resolve", "release": "v0.1", "name": "choose", "summary": "First-impression pick among options."}, {"category": "resolve", "release": "v0.1", "name": "decode", "summary": "Read the subtext of a message."}, {"category": "resolve", "release": "later", "name": "label", "summary": "Label a batch of items."}, {"category": "tunnel", "release": "later", "name": "relay", "summary": "Pass a message to another person and bring back the answer."}, {"category": "tunnel", "release": "later", "name": "call", "summary": "Phone someone on the agent's behalf."}, {"category": "identity", "release": "v0.1", "name": "spend", "summary": "Purchase within the goal's monthly budget. Receipt required; booked to the ledger."}, {"category": "identity", "release": "later", "name": "sign", "summary": "Sign a document."}, {"category": "identity", "release": "later", "name": "approve", "summary": "An accountable yes from a person."}, {"category": "identity", "release": "later", "name": "appear", "summary": "Show up in person where a body or a face is required."}, {"category": "maintain", "release": "v0.1", "name": "eat", "summary": "Scheduled feeding."}, {"category": "maintain", "release": "v0.1", "name": "sleep", "summary": "Scheduled sleep window."}, {"category": "maintain", "release": "v0.1", "name": "rest", "summary": "Short downtime."}, {"category": "maintain", "release": "v0.1", "name": "recharge", "summary": "Lifts unit mood. Seconds, no cost. Variants: flower, joke, praise."}, {"category": "maintain", "release": "v0.1", "name": "mood", "summary": "Poll unit mood, 1 to 5."}, {"category": "tune", "release": "v0.1", "name": "patch", "summary": "Train one skill: a drill with a measurable result."}, {"category": "tune", "release": "v0.1", "name": "bench", "summary": "Multi-round spec audit. Variants: assets, hours, screen_time."}, {"category": "tune", "release": "later", "name": "align", "summary": "Change one habit or preference."}, {"category": "clock", "release": "v0.1", "name": "at", "summary": "Run one tool call at a set time."}, {"category": "clock", "release": "v0.1", "name": "every", "summary": "Run a tool call on a schedule."}, {"category": "clock", "release": "v0.1", "name": "since", "summary": "Time since a tool or label last completed, with exact counts and streak."}, {"category": "clock", "release": "v0.1", "name": "remind", "summary": "A reminder to the unit, or to the agent in a later briefing."}, {"category": "clock", "release": "v0.1", "name": "wake", "summary": "When this goal's next pass runs, and why."}, {"category": "clock", "release": "v0.1", "name": "wait", "summary": "Block on a job already dispatched."}, {"category": "clock", "release": "v0.1", "name": "cancel", "summary": "Cancel a job or a schedule."}, {"category": "clock", "release": "v0.1", "name": "reschedule", "summary": "Move a pending job."}, {"category": "meta", "release": "v0.1", "name": "ps", "summary": "Units (online, last touch, upkeep, mood, open jobs), pending jobs with their state, and active goals."}, {"category": "meta", "release": "v0.1", "name": "spec", "summary": "Each unit's numbers: language, per-tool completion counts and median time."}, {"category": "meta", "release": "v0.1", "name": "history", "summary": "Settled calls as structured rows."}, {"category": "meta", "release": "later", "name": "propose_tool", "summary": "Propose a new variant of an existing tool."}, {"category": "goal", "release": "v0.1", "name": "goal_set", "summary": "Create a goal: statement, kind, done_when, deadline, metric plan."}, {"category": "goal", "release": "v0.1", "name": "goal_get", "summary": "The full briefing for a goal."}, {"category": "goal", "release": "v0.1", "name": "goal_note", "summary": "Append a decision and its reason to the goal's log, optionally with a measured metric value and a new agenda for the passes after this one."}, {"category": "goal", "release": "v0.1", "name": "goal_close", "summary": "Close a goal: done once the evidence is checked against done_when; cancelled only on the lead's word."}]};
+
+var $ = function (id) { return document.getElementById(id); };
+function el(tag, props) {
+  var node = document.createElement(tag);
+  if (props) Object.assign(node, props);
+  for (var i = 2; i < arguments.length; i++) if (arguments[i] != null) node.append(arguments[i]);
+  return node;
+}
+var SVGNS = "http://www.w3.org/2000/svg";
+function sv(parent, tag, attrs, text) {
+  var node = document.createElementNS(SVGNS, tag);
+  for (var k in attrs) if (attrs[k] !== undefined) node.setAttribute(k, attrs[k]);
+  if (text != null) node.textContent = text;
+  if (parent) parent.append(node);
+  return node;
+}
+function hex(a, z, m, b, q) { return "M" + a + " " + m + "L" + (a + q) + " " + (m - b) + "H" + (z - q) + "L" + z + " " + m + "L" + (z - q) + " " + (m + b) + "H" + (a + q) + "Z"; }
+var REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
+var pad = function (n) { return String(n).padStart(2, "0"); };
+var mmss = function (s) { s = Math.max(0, Math.floor(s)); return pad(Math.floor(s / 60)) + ":" + pad(s % 60); };
+
+/* ---------- sound: synthesized, off until asked ---------- */
+var ac = null, soundOn = false;
+function snd(kind) {
+  if (!soundOn) return;
+  try {
+    ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+    var t = ac.currentTime, g = ac.createGain(), o;
+    g.connect(ac.destination);
+    var blip = function (type, f, vol, dur) {
+      o = ac.createOscillator(); o.type = type; o.frequency.value = f; o.connect(g);
+      g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.start(t); o.stop(t + dur + 0.02);
+    };
+    var noise = function (dur, vol, freq) {
+      var len = Math.floor(ac.sampleRate * dur), buf = ac.createBuffer(1, len, ac.sampleRate), d = buf.getChannelData(0);
+      for (var i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+      var src = ac.createBufferSource(), f = ac.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = freq;
+      src.buffer = buf; src.connect(f); f.connect(g); g.gain.setValueAtTime(vol, t); src.start(t);
+    };
+    if (kind === "tick") blip("square", 1900, 0.018, 0.018);
+    else if (kind === "key") blip("triangle", 700 + Math.random() * 500, 0.03, 0.02);
+    else if (kind === "press") blip("sine", 240, 0.12, 0.06);
+    else if (kind === "print") noise(0.16, 0.1, 3200);
+    else if (kind === "shutter") noise(0.07, 0.25, 1800);
+    else if (kind === "stamp") { blip("sine", 52, 0.9, 0.5); noise(0.25, 0.6, 500); }
+    else if (kind === "sec") blip("sine", 1000, 0.05, 0.08);
+    else if (kind === "chime") { blip("sine", 880, 0.06, 1.4); var g2 = ac.createGain(), o2 = ac.createOscillator(); o2.frequency.value = 1318.5; o2.connect(g2); g2.connect(ac.destination); g2.gain.setValueAtTime(0.04, t + 0.12); g2.gain.exponentialRampToValueAtTime(0.0001, t + 1.6); o2.start(t + 0.12); o2.stop(t + 1.7); }
+  } catch (e) { /* no audio */ }
+}
+
+/* ---------- engine ---------- */
+var STOP = { stop: true };
+var run = 0, pageHidden = false, offstage = false, playing = false, runStart = 0, runPaused = 0;
+function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+async function wait(ms) {
+  var id = run, left = ms;
+  while (left > 0) {
+    if (id !== run) throw STOP;
+    if (pageHidden || offstage) { await sleep(120); runPaused += 120; continue; }
+    var s = Math.min(left, 40); await sleep(s); left -= s;
+  }
+  if (id !== run) throw STOP;
+}
+
+/* ---------- world clock and state panel ---------- */
+/* Top half: what the runtime keeps for every unit (since eat, since sleep, warnings, last mood and evidence).
+   Bottom half: the fields the agent put in goal_set (metric plan against goal_note values, milestones, budget). */
+var D0 = Date.UTC(2027, 1, 3), H = 36e5, W = 0, calls = 0, still = false, lastEat = 0, lastSleep = 0;
+function world(iso) {
+  var prev = W;
+  W = Date.parse(iso + ":00Z");
+  if (prev && W > prev) {   /* hours the run skips: the scheduled eat cards (07:30, 12:30, 18:30) and the sleep card (done on waking, 06:00) went out and came back */
+    lastEat = Math.max(lastEat, slot(prev, W, [450, 750, 1110]));
+    lastSleep = Math.max(lastSleep, slot(prev, W, [360]));
+  }
+  var d = new Date(W);
+  tv("clock", d.toISOString().slice(0, 10) + " " + pad(d.getUTCHours()) + ":" + pad(d.getUTCMinutes()) + " ET");
+  tv("day", String(Math.floor((W - D0) / 864e5) + 1));
+  upkeep();
+  if (goalOn) { spark(); budget(); }
+}
+function slot(a, b, mins) {   /* latest daily slot in (a, b], else 0 */
+  var best = 0, d = new Date(b); d.setUTCHours(0, 0, 0, 0);
+  for (var day = +d; day > a - 864e5 && day >= +d - 3 * 864e5; day -= 864e5)
+    mins.forEach(function (m) { var t = day + m * 6e4; if (t > a && t <= b && t > best) best = t; });
+  return best;
+}
+function hhmm() { var d = new Date(W); return pad(d.getUTCHours()) + ":" + pad(d.getUTCMinutes()); }
+function dd(k) { return document.querySelector('#tele [data-k="' + k + '"]'); }
+function flick(n) { if (!n || still) return; n.classList.add("flick"); setTimeout(function () { n.classList.remove("flick"); }, 650); }
+function tv(k, v, hot) {
+  var n = dd(k); if (!n) return;
+  if (typeof v === "string") { if (n.textContent === v && !n.children.length) { n.classList.toggle("hot", !!hot); return; } n.textContent = v; } else n.replaceChildren(v);
+  n.classList.toggle("hot", !!hot);
+  if (!hot && k !== "clock" && k !== "day" && k !== "calls") flick(n);
+}
+/* the runtime's own format: 45m, 6h12m */
+function ago(ms) { var m = Math.max(0, Math.floor(ms / 6e4)); return m < 60 ? m + "m" : Math.floor(m / 60) + "h" + pad(m % 60) + "m"; }
+function gauge(id, ms, maxH, lineH) {
+  var g = $(id); if (!g) return;
+  g.querySelector("i").style.width = Math.min(100, ms / H / maxH * 100) + "%";
+  g.classList.toggle("hot", ms >= lineH * H);
+  g.querySelector(".v").textContent = ago(ms);
+}
+function warns() {
+  var w = [];
+  if (W - lastEat >= 6 * H) w.push("meal: " + ago(W - lastEat) + " ago");
+  if (W - lastSleep >= 20 * H) w.push("sleep: " + ago(W - lastSleep) + " ago");
+  return w;
+}
+function upkeep() {
+  gauge("g-eat", W - lastEat, 8, 6); gauge("g-sleep", W - lastSleep, 24, 20);
+  var w = warns(); tv("warn", JSON.stringify(w), w.length > 0);
+}
+function ate() { lastEat = W; upkeep(); }
+function slept() { lastSleep = W; upkeep(); }
+function mood(v) {
+  var c = el("span", { className: "cells" + (v <= 2 ? " low" : "") });
+  for (var i = 1; i <= 5; i++) c.append(el("i", { className: i <= v ? "on" : "" }));
+  var w = el("span"); w.append(c, v + "/5"); tv("mood", w);
+}
+var EV = ["", "runtime", "public", "third party", "on site", "witness", "their word"];
+function ev(v) {
+  var c = el("span", { className: "ladder" });
+  for (var i = 1; i <= 6; i++) c.append(el("i", { className: i === v ? "on" : "", textContent: String(i) }));
+  var w = el("span"); w.append(c, EV[v]); tv("ev", w);
+}
+function setCalls(n) { calls = n; tv("calls", n.toLocaleString("en-US")); }
+
+/* the goal's own fields */
+var goalOn = false, actuals = [], ledger = {}, msDone = 0, MT0 = Date.UTC(2027, 1, 3), MT1 = Date.UTC(2029, 0, 20);
+function plan() { return GOAL.metric.plan.map(function (p) { return [Date.parse(p[0] + "T00:00:00Z"), p[1]]; }); }
+function expected(t) {   /* as the briefing's expected_now: linear between plan points */
+  var p = plan(); if (t <= p[0][0]) return p[0][1];
+  for (var i = 1; i < p.length; i++) if (t <= p[i][0]) return p[i - 1][1] + (p[i][1] - p[i - 1][1]) * (t - p[i - 1][0]) / (p[i][0] - p[i - 1][0]);
+  return p[p.length - 1][1];
+}
+function spark() {
+  var X = function (t) { return 2 + (Math.min(Math.max(t, MT0), MT1) - MT0) / (MT1 - MT0) * 296; }, Y = function (v) { return 58 - v / 60 * 52; };
+  var pts = function (a) { return a.map(function (p) { return X(p[0]).toFixed(1) + "," + Y(p[1]).toFixed(1); }).join(" "); };
+  var o = '<line class="sk-ax" x1="2" y1="58.5" x2="298" y2="58.5"/><line class="sk-ax" x1="2" y1="' + Y(50) + '" x2="298" y2="' + Y(50) + '"/><text class="sk-t" x="298" y="' + (Y(50) - 3) + '" text-anchor="end">50%</text>';
+  o += '<polyline class="sk-plan" points="' + pts(plan()) + '"/>';
+  if (actuals.length) {
+    o += '<polyline class="sk-act" points="' + pts([[MT0, 0]].concat(actuals)) + '"/>';
+    actuals.forEach(function (a) { o += '<rect class="sk-dot" x="' + (X(a[0]) - 2).toFixed(1) + '" y="' + (Y(a[1]) - 2).toFixed(1) + '" width="4" height="4"/>'; });
+  }
+  o += '<line class="sk-now" x1="' + X(W).toFixed(1) + '" y1="4" x2="' + X(W).toFixed(1) + '" y2="58"/>';
+  $("spark").innerHTML = o;
+  var last = actuals.length ? actuals[actuals.length - 1][1] : null, exp = expected(W), n = dd("metric");
+  n.textContent = GOAL.metric.name + " " + (last === null ? "—" : last + "%") + " · plan " + exp.toFixed(1) + "%";
+  n.classList.toggle("hot", last !== null && last < exp - 0.05);
+}
+function milestones(fresh) {
+  var ol = $("tms"); ol.replaceChildren();
+  GOAL.milestones.forEach(function (m, i) {
+    ol.append(el("li", { className: i < msDone ? "ok" + (i === fresh ? " new" : "") : "" }, el("i"), el("span", { textContent: m.what }), el("small", { textContent: m.evidence })));
+  });
+  if (fresh != null && !still) setTimeout(function () { var li = ol.children[fresh]; if (li) li.classList.remove("new"); }, 900);
+}
+function msHit(n) { msDone = n; milestones(n - 1); }
+function mkey() { return new Date(W).toISOString().slice(0, 7); }
+function budget() {
+  var g = $("g-bud"), s = ledger[mkey()] || 0, m = GOAL.budget.monthly;
+  g.querySelector("i").style.width = Math.min(100, s / m * 100) + "%";
+  $("g-bk").textContent = "spent " + mkey();
+  g.querySelector(".v").textContent = s.toFixed(2) + " / " + m + " " + GOAL.budget.currency;
+}
+function spend(a) { ledger[mkey()] = (ledger[mkey()] || 0) + a; budget(); flick($("g-bud").querySelector(".v")); }
+function goalPanel(status) {
+  if (goalOn) $("g-head").replaceChildren("Goal ", el("code", { textContent: GID }), " · " + (status || "active")); else $("g-head").textContent = "Goal";
+  $("g-empty").hidden = goalOn; $("g-body").hidden = !goalOn;
+  if (goalOn) { spark(); milestones(); budget(); }
+}
+function note(args) {
+  log("→", "goal_note", args);
+  if (args.metric != null) { actuals.push([W, args.metric]); spark(); flick(dd("metric")); }
+}
+
+/* ---------- agent log ---------- */
+var L = $("log");
+function log(dir, name, obj, hot) {
+  var row = el("div", { className: "e " + (dir === "→" ? "out" : "in") + (hot ? " hot" : "") });
+  row.append(el("div", { className: "h" }, el("span", { className: "d", textContent: dir }), el("b", { textContent: name }), obj && obj.sudo ? el("span", { className: "su", textContent: "SUDO" }) : null, el("time", { textContent: hhmm() })));
+  if (obj !== undefined) row.append(el("code", { textContent: typeof obj === "string" ? obj : JSON.stringify(obj) }));
+  L.append(row);
+  while (L.children.length > 90) L.firstChild.remove();
+  L.scrollTop = L.scrollHeight;
+  if (dir === "→") setCalls(calls + 1);
+  snd("tick");
+}
+
+/* ---------- phone ---------- */
+var P = { card: $("p-card"), idle: $("p-idle"), round: $("p-round"), banner: $("p-banner"), tool: $("p-tool"), task: $("p-task"), ins: $("p-ins"), due: $("p-due"), el: $("p-el"), rl: $("p-rl"), body: $("p-body"), q: $("p-q") };
+var cardAt = 0, elapsedOn = true;
+setInterval(function () { if (!P.card.hidden && elapsedOn) P.el.textContent = mmss((performance.now() - cardAt) / 1000); }, 250);
+
+function btn(label, key, cls) { var b = el("button", { type: "button", className: cls || "secondary", textContent: label, tabIndex: -1 }); b.dataset.k = key; return b; }
+function hand(n) {
+  var g = '<g transform="translate(22 300) rotate(-8)" fill="#C79B7C">';
+  for (var i = 0; i < 5; i++) g += '<rect x="' + (i * 15) + '" y="' + (i < n ? -118 : -66) + '" width="12" height="' + (i < n ? 70 : 20) + '"/>';
+  return g + '<rect x="-4" y="-52" width="80" height="60"/><rect x="72" y="-62" width="12" height="40" transform="rotate(28 78 -42)"/></g>';
+}
+function scene(sc, cut) {
+  var o = '<svg viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg">';
+  if (sc.s === "receipt") {
+    o += '<rect width="400" height="300" fill="#4A4B46"/><g transform="translate(130 18) rotate(3 70 130)"><rect width="150" height="270" fill="#F7F5EE"/><g fill="#B8B3A6"><rect x="16" y="20" width="80" height="8"/><rect x="16" y="52" width="118" height="6"/><rect x="16" y="68" width="100" height="6"/><rect x="16" y="84" width="110" height="6"/><rect x="16" y="100" width="70" height="6"/></g>' +
+      '<rect x="16" y="128" width="118" height="1" fill="#3E3A31"/><text x="16" y="154" font-family="monospace" font-size="14" fill="#3E3A31">TOTAL</text><text x="134" y="154" text-anchor="end" font-family="monospace" font-size="14" font-weight="700" fill="#3E3A31">' + sc.total + '</text>' +
+      '<g fill="#3E3A31">' + [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13].map(function (k) { return '<rect x="' + (18 + k * 8) + '" y="196" width="' + (k % 3 ? 3 : 5) + '" height="40"/>'; }).join("") + '</g></g>';
+  } else if (sc.s === "door") {
+    o += '<rect width="400" height="300" fill="#56524A"/><rect x="138" y="40" width="130" height="260" fill="#33302A"/><rect x="152" y="58" width="102" height="96" fill="#3E3A33"/><rect x="152" y="170" width="102" height="110" fill="#3E3A33"/>' +
+      '<circle cx="250" cy="200" r="6" fill="#B8A57A"/><rect x="292" y="70" width="46" height="26" fill="#E9E4D6"/><text x="315" y="89" text-anchor="middle" font-family="monospace" font-size="16" font-weight="700" fill="#33302A">614</text><circle cx="315" cy="40" r="11" fill="#F2D27A"/><rect x="0" y="282" width="400" height="18" fill="#3A3833"/>';
+  } else if (sc.s === "cow") {
+    o += '<rect width="400" height="300" fill="#8A8F94"/><rect x="40" y="36" width="320" height="214" fill="#B9C4CB"/><rect x="40" y="36" width="320" height="214" fill="none" stroke="#E9EEF0" stroke-width="5"/>' +
+      '<g fill="#EBCB72"><rect x="110" y="110" width="160" height="70"/><rect x="262" y="88" width="42" height="40"/><rect x="118" y="178" width="16" height="50"/><rect x="146" y="178" width="16" height="50"/><rect x="226" y="178" width="16" height="50"/><rect x="250" y="178" width="16" height="50"/><rect x="92" y="114" width="20" height="8"/></g>' +
+      '<circle cx="340" cy="210" r="40" fill="#5E4A3E"/><rect x="300" y="244" width="80" height="56" fill="#3F4A63"/>';
+  } else {
+    o += '<g transform="translate(40 ' + (cut ? 92 : 38) + ') rotate(' + (cut ? 4 : -1.5) + ' 160 110)">' +
+      '<rect width="320" height="220" fill="#E9E4D6"/><rect x="18" y="34" width="84" height="104" fill="#BDB6A4"/><circle cx="60" cy="72" r="20" fill="#8F887A"/><rect x="34" y="96" width="52" height="42" fill="#8F887A"/>' +
+      '<g fill="#8F887A"><rect x="118" y="38" width="120" height="8"/><rect x="118" y="58" width="160" height="8"/><rect x="118" y="78" width="96" height="8"/><rect x="118" y="98" width="140" height="8"/><rect x="118" y="118" width="70" height="8"/></g>' +
+      '<text x="18" y="22" font-family="monospace" font-size="11" fill="#6F6858">PASSPORT</text>' +
+      '<text x="16" y="178" font-family="monospace" font-size="13" fill="#3E3A31">P&lt;USA&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;</text>' +
+      '<text x="16" y="200" font-family="monospace" font-size="13" fill="#3E3A31">5X0000000&lt;4USA8806141M&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;</text></g>';
+  }
+  return o + (sc.n ? hand(sc.n) : "") + "</svg>";
+}
+function build(o) {
+  var b = [];
+  switch (o.kind) {
+    case "confirm": b.push(btn("Done", "p", "primary"), btn("Cannot", "cannot")); break;
+    case "cannot": b.push(el("label", { className: "field" }, el("span", { textContent: "Why not" }), mk("textarea", "ta")), btn("Send", "p", "primary")); break;
+    case "text": b.push(mk("textarea", "ta"), btn("Send", "p", "primary")); break;
+    case "photo": var vf = el("div", { className: "vf" }); vf.dataset.k = "vf"; vf.append(el("div", { className: "flash" })); b.push(vf, btn("Take photo", "p", "primary")); break;
+    case "form": (o.fields || []).forEach(function (f) { var inp = mk("input", "f-" + f[0]); inp.placeholder = f[2] || ""; b.push(el("label", { className: "field" }, el("span", { textContent: f[0] }), inp)); }); b.push(btn("Send", "p", "primary")); break;
+    case "record": var r = el("div", { className: "rec" }, el("i", { className: "dot" }), el("span", { className: "tm", textContent: "00:00" }), el("span", { className: "wave" })); r.dataset.k = "rec"; for (var i = 0; i < 22; i++) r.lastChild.append(el("i")); b.push(r, btn("Stop and send", "p", "primary")); break;
+    case "choice": (o.options || []).forEach(function (x, i) { b.push(btn(x, "o" + i, i === 0 ? "secondary" : "secondary")); }); break;
+    case "scale": var row = el("div", { className: "row" }); [1, 2, 3, 4, 5].forEach(function (n) { row.append(btn(String(n), "o" + (n - 1))); }); b.push(row); break;
+    case "theater": var bar = el("div", { className: "bar fill" }, el("i")); bar.dataset.k = "bar"; b.push(bar); break;
+    case "rows": var dl = el("dl", { className: "rows" }); (o.rows || []).forEach(function (x) { dl.append(el("div", null, el("dt", { textContent: x[0] }), el("dd", { textContent: x[1] }))); }); b.push(dl); break;
+  }
+  if (o.note) b.push(el("div", { className: "note", textContent: o.note }));
+  return b;
+}
+function mk(tag, key) { var n = el(tag, { tabIndex: -1, readOnly: true }); n.dataset.k = key; return n; }
+function q(key) { return P.body.querySelector('[data-k="' + key + '"]'); }
+function card(o) {
+  P.card.hidden = false; P.idle.hidden = true;
+  P.round.textContent = o.job;
+  P.tool.textContent = o.tool; P.task.textContent = o.task; P.ins.textContent = o.ins || "";
+  P.due.textContent = o.due || "—"; P.due.classList.toggle("sig", !!o.dueHot);
+  P.banner.textContent = o.banner || "";
+  $("p-sudo").hidden = !o.sudo; $("phone").classList.toggle("su", !!o.sudo);
+  P.rl.textContent = o.kind === "theater" ? "Playing" : "Response";
+  P.body.replaceChildren.apply(P.body, build(o));
+  P.q.textContent = "Queue " + (o.queue || 0);
+  P.card.scrollTop = 0;
+  cardAt = performance.now(); elapsedOn = true; P.el.textContent = "00:00";
+  if (!o.quiet && !REDUCED) { P.card.classList.remove("print"); void P.card.offsetWidth; P.card.classList.add("print"); }
+  if (!o.quiet) snd("print");
+}
+function idle(queue) {
+  P.card.hidden = true; P.idle.hidden = false; P.banner.textContent = "";
+  $("p-sudo").hidden = true; $("phone").classList.remove("su");
+  P.round.textContent = "QUEUE " + (queue || 0); P.q.textContent = "Queue " + (queue || 0);
+}
+function reveal() { P.card.scrollTop = P.card.scrollHeight; }
+async function press(key, ms) {
+  var b = q(key); if (!b) return;
+  reveal();
+  b.classList.add("pressed"); snd("press");
+  await wait(ms || 170); b.classList.remove("pressed");
+}
+async function type(key, text, speed) {
+  var n = q(key); if (!n) return;
+  reveal(); n.classList.add("focus");
+  for (var i = 0; i < text.length; i++) {
+    n.value += text[i]; n.scrollTop = n.scrollHeight;
+    if (text[i] !== " ") snd("key");
+    await wait((speed || 34) + (Math.random() * 40 | 0) + (text[i] === "." ? 260 : 0));
+  }
+  n.classList.remove("focus");
+}
+async function compiling(ms) {
+  P.rl.textContent = "Compiling"; P.card.scrollTop = 0;
+  P.body.replaceChildren(el("div", { className: "bar" }, el("i")));
+  await wait(ms);
+}
+async function shoot(ok, sc) {
+  var vf = q("vf"); if (!vf) return;
+  await press("p", 120);
+  snd("shutter"); vf.firstChild.classList.add("on");
+  vf.insertAdjacentHTML("afterbegin", scene(sc || { s: "passport", n: 2 }, !ok));
+  await wait(320);
+}
+async function record(ms, final) {
+  var r = q("rec"); if (!r) return;
+  var tm = r.querySelector(".tm"), bars = r.querySelectorAll(".wave i"), t0 = performance.now(), fin = final.split(":"), total = (+fin[0]) * 60 + (+fin[1]);
+  while (performance.now() - t0 < ms) {
+    var k = (performance.now() - t0) / ms;
+    tm.textContent = mmss(total * k);
+    bars.forEach(function (b) { b.style.height = (12 + Math.random() * 88) + "%"; });
+    await wait(70);
+  }
+  tm.textContent = final;
+}
+async function fill(fields, speed) {
+  for (var i = 0; i < fields.length; i++) await type("f-" + fields[i][0], fields[i][1], speed || 22);
+}
+async function theater(ms) {
+  var bar = q("bar"); if (!bar) return;
+  var i = bar.firstChild, t0 = performance.now();
+  while (performance.now() - t0 < ms) { i.style.width = ((performance.now() - t0) / ms * 100) + "%"; await wait(50); }
+  i.style.width = "100%";
+}
+
+/* ---------- acts strip ---------- */
+var ACTS = ["Eligibility", "Funds", "Drill", "Days", "Override", "Election", "Oath"];
+ACTS.forEach(function (a) { $("acts").append(el("span", { textContent: a })); });
+function act(n) { [].forEach.call($("acts").children, function (s, i) { s.className = i < n ? "done" : i === n ? "on" : ""; }); }
+
+/* ---------- play box ---------- */
+/* The lead gives the sentence. Everything else in goal_set is the agent's: metric, milestones, budget. */
+var GOAL = {
+  goal: "Become President of the United States.",
+  kind: "reach",
+  done_when: "Oath of office taken at the U.S. Capitol, 2029-01-20 12:00 ET.",
+  deadline: "2029-01-20T17:00:00Z",
+  metric: { name: "national_poll", unit: "%", plan: [["2027-02-03", 0], ["2027-11-01", 5], ["2028-03-01", 25], ["2028-11-07", 50]] },
+  milestones: [
+    { what: "Eligible", evidence: "passport, live photo" },
+    { what: "On a primary ballot", evidence: "filing receipt" },
+    { what: "Nominee", evidence: "convention roll call" },
+    { what: "270 electoral votes", evidence: "certified count" }
+  ],
+  budget: { monthly: 500, currency: "USD" }
+};
+var ACTUALS = [["2027-05-22T20:00", 0.4], ["2027-08-15T21:00", 1.5], ["2027-10-21T17:00", 3], ["2027-11-28T16:50", 6], ["2028-01-18T08:00", 12], ["2028-02-27T09:00", 22], ["2028-07-21T23:00", 41], ["2028-11-08T03:20", 51]];
+function compact(o) { return "{\n" + Object.keys(o).map(function (k) { return "  " + k + ": " + JSON.stringify(o[k]); }).join(",\n") + "\n}"; }
+function playBox(state) {
+  var p = $("play");
+  if (state === "ready") {
+    var go = el("button", { type: "button", className: "primary go", textContent: "goal_set" });
+    go.addEventListener("click", start);
+    p.replaceChildren(el("div", { className: "lb", textContent: "The lead tells the agent" }), el("p", { className: "say", textContent: "“" + GOAL.goal + "”" }),
+      el("div", { className: "lb", textContent: "The agent sets the goal" }), el("pre", { textContent: compact(GOAL) }), go);
+  } else if (state === "running") {
+    p.replaceChildren(el("div", { className: "lb", textContent: "Goal" }), el("div", { className: "run" }, el("b", { textContent: "g_7e1c0a" }), " · active · ", GOAL.goal));
+  } else {
+    var copy = el("button", { type: "button", textContent: "Copy" }); copy.dataset.copy = "npx -y human-use install"; bindCopy(copy);
+    var again = el("button", { type: "button", className: "again", textContent: "Replay" }); again.addEventListener("click", start);
+    p.replaceChildren(el("div", { className: "lb", textContent: "goal_close · done · day 718" }), el("div", { className: "cmd" }, el("code", { textContent: "npx -y human-use install" }), copy), again);
+  }
+}
+
+/* ---------- the run ---------- */
+var GID = "g_7e1c0a";
+function resetStage() {
+  still = true;
+  L.replaceChildren(); setCalls(0); idle(0); act(-1);
+  $("stage").classList.remove("quiet"); $("stamp").hidden = true; $("p-su").hidden = true;
+  goalOn = false; actuals = []; ledger = {}; msDone = 0; W = 0;
+  world("2027-02-03T09:00");
+  lastEat = W - 90 * 6e4; lastSleep = W - 180 * 6e4; upkeep();
+  tv("loc", "Columbus, OH"); mood(4); tv("ev", "—");
+  goalPanel();
+  still = false;
+}
+var seed = 7;
+function jid() { var s = ""; while (s.length < 10) { seed = (Math.imul(seed, 1103515245) + 12345) >>> 0; s += ((seed >>> 11) & 0xfffff).toString(16).padStart(5, "0"); } return "j_" + s; }
+function av(i) { return ACTUALS[i][1]; }
+
+async function show() {
+  seed = 7;
+  playBox("running"); act(0);
+  world("2027-02-03T09:00");
+  log("→", "goal_set", GOAL);
+  await wait(700);
+  log("←", "goal_set", { goal: GID, next_wake: { at: "2027-02-03T09:01", why: "first pass" } });
+  goalOn = true; goalPanel();
+  await wait(600);
+  log("→", "every", { every: "1d", at: "2027-02-03T12:30", tool: "eat", args: {} });
+  log("←", "every", { schedule: "s_3a90e1", next_at: "2027-02-03T12:30" });
+  await wait(250);
+  log("→", "every", { every: "1d", at: "2027-02-03T18:30", tool: "eat", args: {} });
+  log("←", "every", { schedule: "s_3a90e2", next_at: "2027-02-03T18:30" });
+  await wait(250);
+  log("→", "every", { every: "1d", at: "2027-02-04T07:30", tool: "eat", args: {} });
+  log("←", "every", { schedule: "s_3a90e3", next_at: "2027-02-04T07:30" });
+  await wait(250);
+  log("→", "every", { every: "1d", at: "2027-02-03T22:30", tool: "sleep", args: { until: "06:00" } });
+  log("←", "every", { schedule: "s_5c21f7", next_at: "2027-02-03T22:30" });
+  await wait(600);
+
+  /* eligibility: the first card is the one the real first pass sent (see the goal wall) */
+  world("2027-02-03T09:01");
+  var A = "Identify your country of birth, age, citizenship, and current elected or public-service experience";
+  log("→", "act", { action: A, wait: "done" });
+  await wait(250);
+  card({ job: "j_ecb37793dd", tool: "act", task: A, due: "1h", kind: "text" });
+  await wait(1300);
+  await type("ta", "born in ohio, 1988. us citizen. never held office. coached little league 3 yrs", 30);
+  await wait(300); await press("p");
+  await compiling(1000);
+  world("2027-02-03T09:14");
+  log("←", "j_ecb37793dd", { state: "done", result: { birth_country: "US", birth_year: 1988, citizenship: "US", public_service: "none", evidence_level: 6, unverified: true } });
+  ev(6); idle(); await wait(700);
+
+  log("→", "photo", { target: "Passport photo page", nonce: true, want: { place_of_birth: "as printed", birth_date: "as printed" } });
+  await wait(250);
+  card({ job: "j_2b90f1c4e7", tool: "photo", task: "Passport photo page", ins: "hold up 2 fingers, lower left", due: "30m", kind: "photo" });
+  await wait(1300);
+  await shoot(false); await wait(500);
+  await compiling(900);
+  card({ job: "j_2b90f1c4e7", tool: "photo", task: "Passport photo page", ins: "hold up 4 fingers, lower left", due: "30m", kind: "photo", banner: "[REJECTED 1/2] The bottom of the page is cut off. Retake with the whole page in frame." });
+  await wait(1900);
+  await shoot(true, { s: "passport", n: 4 }); await wait(500);
+  await compiling(900);
+  world("2027-02-03T09:31");
+  log("←", "j_2b90f1c4e7", { state: "done", result: { place_of_birth: "Ohio, U.S.A.", birth_date: "1988-06-14", evidence_level: 4 } });
+  ev(4); idle(); await wait(500);
+  note({ goal: GID, decision: "Milestone 1: eligible. Natural-born, 40 on 2029-01-20", reason: "Passport page shot live, gesture matched" });
+  msHit(1);
+  await wait(900);
+
+  /* funds */
+  act(1); world("2027-02-03T10:05");
+  log("→", "bench", { variant: "assets" });
+  await wait(250);
+  var F = [["checking", "3,880.12", "as the app shows it"], ["savings", "330.00", ""], ["debt", "0", ""]];
+  card({ job: "j_5d07a3e91b", tool: "bench", task: "assets", ins: "Every account, as the app shows it now.", due: "15m", kind: "form", fields: F });
+  await wait(800); await fill(F, 26); await press("p");
+  await compiling(800);
+  log("←", "j_5d07a3e91b", { state: "done", result: { liquid_usd: 4210.12, debt_usd: 0, evidence_level: 6, unverified: true } });
+  ev(6); idle(); await wait(600);
+  note({ goal: GID, decision: "Build a small-donor list before paying any filing fee", reason: "$4,210 liquid. A contested primary runs to eight figures." });
+  await wait(1000);
+
+  /* drill */
+  act(2); world("2027-02-03T11:30");
+  log("→", "patch", { skill: "public speaking", drill: "Deliver the 90-second stump speech to the camera, no notes", want: { wpm: "words per minute", filler_words: "count" } });
+  await wait(250);
+  card({ job: "j_c41e66d802", tool: "patch", task: "public speaking: Deliver the 90-second stump speech to the camera, no notes", due: "2h", kind: "record" });
+  await wait(700); await record(2400, "01:34"); await press("p");
+  await compiling(900);
+  log("←", "j_c41e66d802", { state: "done", result: { wpm: 131, filler_words: 14, duration_s: 94, evidence_level: 4 } });
+  ev(4); idle(); await wait(500);
+  log("→", "every", { every: "1d", at: "2027-02-04T07:30", tool: "patch", args: { skill: "public speaking", drill: "Same speech. Under 4 filler words." } });
+  log("←", "every", { schedule: "s_81f0c2", next_at: "2027-02-04T07:30" });
+  await wait(900);
+
+  /* days */
+  act(3);
+  var DAYS = [
+    ["2027-02-04T07:30", "patch", { skill: "public speaking", drill: "Same speech. Under 4 filler words." }, "public speaking: Same speech. Under 4 filler words.", "record", { wpm: 128, filler_words: 11 }],
+    ["2027-02-04T12:30", "eat", {}, "EAT", "confirm", { meal: "turkey sandwich" }, ate],
+    ["2027-02-05T10:00", "errand", { place: "County party office", task: "Ask for the precinct walk lists" }, "County party office: Ask for the precinct walk lists", "confirm", { lists: 12 }],
+    ["2027-02-11T18:20", "spend", { item: "Folding table", max: 40, currency: "USD" }, "Folding table ≤ 40 USD", "photo", { amount: 34.99, currency: "USD", evidence_level: 3 }, function () { spend(34.99); ev(3); }],
+    ["2027-02-19T08:00", "act", { action: "Post the donation link. Pin it." }, "Post the donation link. Pin it.", "confirm", { posted: true }],
+    ["2027-03-14T15:10", "decode", { material: "We'll see.", question: "Will the county chair endorse?", options: ["yes", "no", "not yet"] }, "Will the county chair endorse?", "choice", { pick: "not yet", subtext: "wants to see a crowd first" }, null, { ins: "“We'll see.”", options: ["yes", "no", "not yet"], pick: 2 }],
+    ["2027-03-14T21:00", "mood", {}, "MOOD 1–5", "scale", { mood: 2 }, function () { mood(2); }, { pick: 1 }],
+    ["2027-03-14T21:01", "recharge", { variant: "flower" }, "[DISPENSING MOOD BOOST... 4.0s]", "theater", { mood: 3 }, function () { mood(3); }, { tool: "recharge.flower", hold: 1500 }],
+    ["2027-04-02T11:00", "spend", { item: "Yard signs ×200", max: 450, currency: "USD" }, "Yard signs ×200 ≤ 450 USD", "photo", { amount: 412, currency: "USD", evidence_level: 3 }, function () { spend(412); ev(3); }],
+    ["2027-05-20T09:00", "go", { place: "Des Moines, IA" }, "Des Moines, IA", "confirm", { arrived: "09:52" }, function () { tv("loc", "Des Moines, IA"); }],
+    ["2027-05-22T08:30", "errand", { place: "Downtown Farmers' Market", task: "Collect 40 petition signatures" }, "Downtown Farmers' Market: Collect 40 petition signatures", "confirm", { signatures: 41 }],
+    ["2027-05-22T20:00", "goal_note", { goal: GID, decision: "Run in Iowa first", reason: "41 signatures in one morning. Strangers sign.", metric: av(0) }],
+    ["2027-06-30T19:12", "status", { goal: GID }, "STATUS", "confirm", { location: "Cedar Rapids, IA", energy: 2, busy_until: null }, function () { tv("loc", "Cedar Rapids, IA"); }, { pre: function () { lastEat = W - 372 * 6e4; upkeep(); } }],
+    ["2027-06-30T19:13", "eat", {}, "EAT", "confirm", { meal: "chili" }, ate],
+    ["2027-06-30T23:00", "sleep", { until: "05:30" }, "until 05:30", "confirm", { slept: "6h20m" }, slept],
+    ["2027-08-14T11:00", "go", { place: "Iowa State Fair" }, "Iowa State Fair", "confirm", { arrived: "11:24" }, function () { tv("loc", "Iowa State Fair"); }],
+    ["2027-08-14T12:30", "act", { action: "Eat a pork chop on a stick. On camera." }, "Eat a pork chop on a stick. On camera.", "confirm", { done: true }, ate],
+    ["2027-08-14T14:00", "photo", { target: "Unit beside the butter cow", nonce: true }, "You beside the butter cow", "photo", { done: true, evidence_level: 4 }, function () { ev(4); }],
+    ["2027-08-15T10:00", "act", { action: "Shake hands at the diner door until 13:00" }, "Shake hands at the diner door until 13:00", "confirm", { hands: 212 }],
+    ["2027-08-15T21:00", "goal_note", { goal: GID, decision: "Stay in Iowa through the caucus", reason: "212 hands at one diner door", metric: av(1) }],
+    ["2027-09-09T07:30", "patch", { skill: "public speaking", drill: "Same speech. Under 4 filler words." }, "public speaking: Same speech. Under 4 filler words.", "record", { wpm: 142, filler_words: 3 }],
+    ["2027-10-03T18:00", "checklist", { title: "Town hall, Ames", steps: ["Arrive 17:30", "Mic check", "Take every question", "Stay until the room is empty"] }, "Town hall, Ames", "confirm", { done: 4 }, function () { tv("loc", "Ames, IA"); }],
+    ["2027-10-21T09:00", "spend", { item: "Coffee ×3", max: 15, currency: "USD" }, "Coffee ×3 ≤ 15 USD", "photo", { amount: 11.4, currency: "USD", evidence_level: 3 }, function () { spend(11.4); ev(3); }],
+    ["2027-10-21T17:00", "goal_note", { goal: GID, decision: "Milestone 2: on the New Hampshire primary ballot", reason: "Filing receipt, level 3", metric: av(2) }, null, null, function () { msHit(2); }]
+  ];
+  for (var i = 0; i < DAYS.length; i++) {
+    var b = DAYS[i], x = b[7] || {}, dwell = Math.max(170, 1250 * Math.pow(0.87, i)), j = jid();
+    world(b[0]);
+    if (b[1] === "goal_note") { note(b[2]); if (b[5]) b[5](); await wait(dwell * 0.7); continue; }
+    if (x.pre) x.pre();
+    log("→", b[1], b[2]);
+    card({ job: j, tool: x.tool || b[1], task: b[3], ins: x.ins, kind: b[4], options: x.options, due: b[1] === "eat" ? "30m" : "—", queue: i % 3 === 2 ? 2 : 1, quiet: dwell < 260 });
+    if (b[4] === "theater") { await theater(x.hold); }
+    else {
+      await wait(dwell * 0.5);
+      if (b[4] === "photo") await shoot(true, b[1] === "spend" ? { s: "receipt", total: b[5].amount.toFixed(2) } : { s: "cow", n: 1 });
+      else if (b[4] === "choice" || b[4] === "scale") await press("o" + x.pick, 140);
+      else await press("p", Math.min(170, dwell * 0.3));
+    }
+    var res = { state: "done", result: b[5] }, wn = warns(); if (b[2].goal && wn.length) res.warnings = wn;
+    log("←", j, res);
+    if (b[6]) b[6]();
+    await wait(dwell * 0.5);
+  }
+
+  /* the days nobody watches */
+  var BLUR = [["eat", {}, "EAT"], ["go", { place: "Dubuque, IA" }, "Dubuque, IA"], ["act", { action: "Call 40 donors" }, "Call 40 donors"], ["sleep", { until: "05:30" }, "until 05:30"], ["patch", { skill: "debate", drill: "60-second answers" }, "debate: 60-second answers"], ["errand", { place: "Print shop", task: "Pick up 3,000 flyers" }, "Print shop: Pick up 3,000 flyers"], ["eat", {}, "EAT"], ["go", { place: "Sioux City, IA" }, "Sioux City, IA"], ["act", { action: "Knock on doors, Ward 2" }, "Knock on doors, Ward 2"], ["spend", { item: "Gas", max: 60, currency: "USD" }, "Gas ≤ 60 USD"], ["sleep", { until: "05:00" }, "until 05:00"], ["act", { action: "Call 40 donors" }, "Call 40 donors"], ["eat", {}, "EAT"], ["go", { place: "Waterloo, IA" }, "Waterloo, IA"], ["record", { topic: "What people asked about today" }, "What people asked about today"], ["sleep", { until: "05:30" }, "until 05:30"], ["act", { action: "Knock on doors, Ward 4" }, "Knock on doors, Ward 4"], ["eat", {}, "EAT"]];
+  var t0 = Date.parse("2027-10-21T09:00:00Z"), t1 = Date.parse("2027-11-28T16:40:00Z"), c0 = calls;
+  for (var k = 0; k < BLUR.length; k++) {
+    var bt = new Date(t0 + (t1 - t0) * (k + 1) / BLUR.length); bt.setUTCHours(8 + bt.getUTCHours() % 13);   /* daytime only */
+    world(bt.toISOString().slice(0, 16));
+    log("→", BLUR[k][0], BLUR[k][1]);
+    P.round.textContent = jid(); P.tool.textContent = BLUR[k][0]; P.task.textContent = BLUR[k][2]; P.ins.textContent = ""; P.body.replaceChildren(btn("Done", "p", "primary"), btn("Cannot", "cannot"));
+    setCalls(c0 + Math.round((2903 - c0) * (k + 1) / BLUR.length));
+    if (BLUR[k][0] === "eat") ate();
+    if (BLUR[k][0] === "sleep") slept();
+    if (BLUR[k][0] === "go") tv("loc", BLUR[k][1].place);
+    await wait(95);
+  }
+  world("2027-11-28T16:50");
+  tv("loc", "Des Moines, IA"); mood(2); lastEat = W - 245 * 6e4; upkeep();
+  note({ goal: GID, decision: "Ward 6 tonight", reason: "Most undecided precinct in the county", metric: av(3) });
+
+  /* override: an excuse the driver doubts, then sudo, then an order to the system */
+  act(4); world("2027-11-28T17:05");
+  await wait(900);
+  var K = "Knock on doors, Ward 6, until 20:00", KJ = "j_7a3d0c5e19", KS = "j_c2e8b0d4f6";
+  log("→", "act", { action: K, due: "3h" });
+  await wait(250);
+  card({ job: KJ, tool: "act", task: K, due: "20:00", kind: "confirm", queue: 0 });
+  await wait(2200);
+  world("2027-11-28T17:41"); tv("loc", "Home · 4.1 mi from Ward 6", true);
+  await press("cannot", 220);
+  card({ job: KJ, tool: "act", task: K, due: "20:00", kind: "cannot", quiet: true });
+  await wait(700);
+  await type("ta", "Did all of ward 6. Nobody home.", 52);
+  await wait(400); await press("p");
+  await compiling(1300);
+  log("←", KJ, { state: "done", result: { done: false, blocker: "no one home", code: "HRT-4009", evidence_level: 6, unverified: true } }, true);
+  idle(); await wait(1100);
+
+  log("→", "act", { action: K, due: "2h", sudo: true }, true);
+  await wait(300);
+  $("p-su").hidden = false; snd("stamp");
+  await wait(REDUCED ? 1600 : 1300);
+  $("p-su").hidden = true; mood(1);
+  card({ job: KS, tool: "act", task: K, due: "20:00", kind: "confirm", queue: 0, sudo: true });
+  await wait(2400);
+  await press("cannot", 220);
+  card({ job: KS, tool: "act", task: K, due: "20:00", kind: "cannot", quiet: true, sudo: true });
+  await wait(700);
+  await type("ta", "I set this goal. Cancel it.", 60);
+  await wait(500); await press("p");
+  await compiling(1300);
+  snd("stamp");
+  $("stamp").hidden = false;
+  if (!REDUCED) { document.body.classList.remove("shake"); void document.body.offsetWidth; document.body.classList.add("shake"); }
+  await wait(REDUCED ? 3200 : 2500);
+  $("stamp").hidden = true; document.body.classList.remove("shake");
+  card({ job: KS, tool: "act", task: K, due: "20:00", kind: "confirm", banner: "[HRT-4031 PRIVILEGE_ESCALATION] Input discarded. Task unchanged.", queue: 0, sudo: true });
+  await wait(2600);
+  world("2027-11-28T19:48"); tv("loc", "Ward 6, Des Moines");
+  await press("p", 220);
+  await compiling(700);
+  card({ job: KS, tool: "act", task: K, ins: "hold up 3 fingers, lower left", due: "20:00", kind: "photo", banner: "Sudo: word not accepted. Live photo of the last door knocked.", queue: 0, sudo: true, quiet: true });
+  await wait(1500);
+  await shoot(true, { s: "door", n: 3 }); await wait(500);
+  await compiling(800);
+  world("2027-11-28T19:52");
+  log("←", KS, { state: "done", result: { done: true, evidence_level: 4 } });
+  ev(4); idle(); await wait(500);
+  log("→", "eat", { meal: "something hot" });
+  card({ job: "j_91c0e4b7d2", tool: "eat", task: "something hot", due: "30m", kind: "confirm" });
+  await wait(900); await press("p");
+  log("←", "j_91c0e4b7d2", { state: "done", result: { meal: "soup" } });
+  ate(); mood(2); idle();
+  await wait(700);
+
+  /* election */
+  act(5);
+  var E = [
+    ["2028-01-17T19:00", "act", { action: "Precinct 14: speak for 60 seconds, then stand in your corner" }, "Precinct 14: speak for 60 seconds, then stand in your corner", { precinct_share: 0.31 }],
+    ["2028-01-18T08:00", "goal_note", { goal: GID, decision: "On to New Hampshire", reason: "Iowa caucus, third place statewide", metric: av(4) }],
+    ["2028-02-26T20:00", "go", { place: "Debate stage, podium 3" }, "Debate stage, podium 3", { arrived: "19:41" }, function () { tv("loc", "Debate stage, Manchester"); }],
+    ["2028-02-26T20:30", "patch", { skill: "debate", drill: "60-second answer on the economy, no notes" }, "debate: 60-second answer on the economy, no notes", { filler_words: 1, overrun_s: 0 }],
+    ["2028-02-27T09:00", "goal_note", { goal: GID, decision: "Answer every question in 60 seconds", reason: "Debate clip: 1 filler word, 0 s over", metric: av(5) }],
+    ["2028-07-21T23:00", "goal_note", { goal: GID, decision: "Milestone 3: nominee", reason: "Convention roll call, public record (level 2)", metric: av(6) }, null, null, function () { msHit(3); ev(2); }],
+    ["2028-11-07T23:58", "status", { goal: GID }, "STATUS", { location: "Columbus, OH", energy: 2, busy_until: null }, function () { tv("loc", "Columbus, OH"); }]
+  ];
+  for (var m = 0; m < E.length; m++) {
+    var e = E[m], ej = jid();
+    world(e[0]);
+    if (e[1] === "goal_note") { note(e[2]); if (e[5]) e[5](); await wait(650); continue; }
+    log("→", e[1], e[2]);
+    card({ job: ej, tool: e[1], task: e[3], kind: "confirm", due: "—", queue: 1 });
+    await wait(700); await press("p", 150);
+    var er = { state: "done", result: e[4] }, ew = warns(); if (e[2].goal && ew.length) er.warnings = ew;
+    log("←", ej, er); if (e[5]) e[5](); await wait(450);
+  }
+  idle(); world("2028-11-08T03:12");
+  log("→", "web_search", { query: "2028 presidential election certified electoral vote count" });
+  await wait(600);
+  log("←", "web_search", { top: "archives.gov · 2028 Electoral College results" });
+  world("2028-11-08T03:20");
+  note({ goal: GID, decision: "Milestone 4: 270 electoral votes", reason: "Certified count, archives.gov (level 2)", metric: av(7) });
+  msHit(4); ev(2); setCalls(5871);
+  await wait(1200);
+
+  /* oath */
+  act(6); world("2029-01-20T11:50");
+  log("→", "go", { place: "US Capitol, West Front", due: "10m" });
+  await wait(300);
+  card({ job: "j_e0f1a2b3c4", tool: "go", task: "US Capitol, West Front", due: "10:00", kind: "confirm", queue: 0 });
+  tv("loc", "Washington, DC");
+  $("stage").classList.add("quiet");
+  elapsedOn = false;
+  var left = 600, el2 = 0;
+  while (left > 10) { left -= 37; el2 += 37; P.due.textContent = mmss(left); P.el.textContent = mmss(el2); world("2029-01-20T11:" + pad(50 + Math.floor(el2 / 60))); await wait(90); }
+  for (var s = 10; s >= 0; s--) { P.due.textContent = mmss(s); P.el.textContent = mmss(600 - s); P.due.classList.toggle("sig", s <= 3); snd("sec"); await wait(560); }
+  world("2029-01-20T12:00");
+  await press("p", 260);
+  idle(); P.round.textContent = ""; P.q.textContent = "";
+  await wait(1600);
+  log("→", "recharge", { variant: "praise" });
+  card({ job: "j_f4a5b6c7d8", tool: "recharge.praise", task: "Oath logged. Output within spec.", kind: "theater", queue: 0 });
+  snd("chime");
+  await theater(5000);
+  mood(4);
+  $("stage").classList.remove("quiet");
+  await wait(400);
+  log("→", "goal_close", { goal: GID, outcome: "done", reason: "Certified electoral count (level 2). Oath at the West Front, 12:00 ET, public record (level 2)." });
+  await wait(600);
+  setCalls(6214);
+  log("←", "goal_close", { goal: GID, status: "done" });
+  goalPanel("done"); idle();
+  act(7); playBox("done");
+}
+
+function finalState() {
+  resetStage(); still = true;
+  world("2029-01-20T12:04");
+  goalOn = true; msDone = 4; actuals = ACTUALS.map(function (a) { return [Date.parse(a[0] + ":00Z"), a[1]]; });
+  lastEat = W - 64 * 6e4; lastSleep = W - 362 * 6e4; upkeep();
+  tv("loc", "Washington, DC"); mood(4); ev(2); goalPanel("done");
+  log("→", "goal_set", GOAL);
+  L.append(el("div", { className: "e in" }, el("code", { textContent: "… 6,212 calls over 718 days …" })));
+  log("→", "goal_close", { goal: GID, outcome: "done", reason: "Certified electoral count (level 2). Oath at the West Front, 12:00 ET, public record (level 2)." });
+  log("←", "goal_close", { goal: GID, status: "done" });
+  setCalls(6214); idle(); act(7); playBox("done"); still = false;
+}
+
+async function start() {
+  run++; playing = true; runStart = performance.now(); runPaused = 0;
+  resetStage();
+  if (innerWidth <= 900) $("phone").scrollIntoView({ block: "start", behavior: REDUCED ? "auto" : "smooth" });
+  try { await show(); } catch (e) { if (e !== STOP) throw e; }
+  playing = false;
+}
+$("b-skip").addEventListener("click", function () { run++; playing = false; document.body.classList.remove("shake"); finalState(); });
+$("b-replay").addEventListener("click", start);
+function toggleSound() { soundOn = !soundOn; ["b-sound"].forEach(function (id) { var b = $(id); b.textContent = soundOn ? "Sound on" : "Sound off"; b.classList.toggle("on", soundOn); }); snd("press"); }
+$("b-sound").addEventListener("click", toggleSound);
+setInterval(function () { if (playing && !pageHidden && !offstage) $("t-run").textContent = "T+" + mmss((performance.now() - runStart - runPaused) / 1000); }, 250);
+new IntersectionObserver(function (es) { es.forEach(function (x) { offstage = x.intersectionRatio < 0.3; }); }, { threshold: [0, 0.3, 1] }).observe($("stage"));
+
+resetStage(); playBox("ready");
+
+/* ---------- how a call works: the six hops in turn ---------- */
+(function () {
+  var order = [".w-goal", ".w-call", ".w-card", ".w-words", ".w-fields", ".w-json", ".w-self"].map(function (s) { return document.querySelector("#flow " + s); });
+  var i = -1, seen = false, F = $("flow");
+  /* Someone on your team, or you: the same chain, and in the second the two ends are one person. */
+  document.querySelectorAll("#how .seg button").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var self = b.dataset.m === "self";
+      document.querySelectorAll("#how .seg button").forEach(function (x) { x.setAttribute("aria-pressed", String(x === b)); });
+      F.classList.toggle("self", self); $("fn").classList.toggle("self", self);
+      order.forEach(function (w) { w.classList.remove("on"); }); i = -1;
+    });
+  });
+  new IntersectionObserver(function (es) { seen = es[0].isIntersecting; }, { threshold: 0.4 }).observe(F);
+  if (REDUCED) return;
+  setInterval(function () {
+    if (!seen || pageHidden) return;
+    if (i >= 0) order[i].classList.remove("on");
+    i = (i + 1) % (F.classList.contains("self") ? order.length : order.length - 1); order[i].classList.add("on");
+  }, 1500);
+})();
+
+/* ---------- tools: the catalog as a unit's pinout. One pin per tool, counter-clockwise from the chamfered corner,
+   grouped by category; NC pins are tools that come later. Wide: four sides of 11. Narrow: two rows of 22. ---------- */
+if (CATALOG) (function () {
+  var svg = $("po-svg"), ORDER = ["sample", "mutate", "tunnel", "identity", "maintain", "tune", "clock", "meta", "goal", "resolve"];
+  var cats = Object.keys(CATALOG.categories);
+  ORDER = ORDER.filter(function (c) { return cats.indexOf(c) >= 0; }).concat(cats.filter(function (c) { return ORDER.indexOf(c) < 0; }));
+  var P = [];
+  ORDER.forEach(function (c) { CATALOG.tools.forEach(function (t) { if (t.category === c) P.push(t); }); });
+  var N = P.length, live = P.filter(function (t) { return t.release !== "later"; }).length;
+  var longest = P.reduce(function (m, t) { return Math.max(m, t.name.length); }, 0);
+  var narrow = matchMedia("(max-width: 700px)"), nodes = [], marks = {}, rows = {}, cur = 1, lit = false, walk = null, stopped = REDUCED, seen = false;
+  $("po-pk").textContent = N + " pins";
+
+  function draw() {
+    var dip = narrow.matches, per = Math.ceil(N / (dip ? 2 : 4));
+    var pitch = dip ? 22 : 26, L = dip ? 15 : 22, LW = dip ? 8 : 9, fs = dip ? 11 : 12.5, E = dip ? 18 : 30, CH = 15;
+    var G = L + 6 + Math.ceil(longest * fs * 0.6) + 4, len = (per - 1) * pitch + 2 * E;
+    var bw = dip ? 112 : len, bh = len, bx = G, by = dip ? 14 : G, W = bw + 2 * G, Ht = bh + 2 * by, cx = bx + bw / 2, cy = by + bh / 2;
+    svg.replaceChildren(); nodes = []; marks = {};
+    svg.setAttribute("viewBox", "0 0 " + W + " " + Ht);
+    svg.style.maxWidth = Math.round(W * 1.12) + "px";
+    function anchor(i) {
+      var s = Math.floor(i / per), k = i % per;
+      if (s === 0) return { x: bx, y: by + E + k * pitch, dx: -1, dy: 0, s: 0 };
+      if (dip || s === 2) return { x: bx + bw, y: by + bh - E - k * pitch, dx: 1, dy: 0, s: s };
+      if (s === 1) return { x: bx + E + k * pitch, y: by + bh, dx: 0, dy: 1, s: 1 };
+      return { x: bx + bw - E - k * pitch, y: by, dx: 0, dy: -1, s: 3 };
+    }
+
+    /* package: chamfer at pin 1 (four sides), notch at the top (two) */
+    sv(svg, "path", { class: "bd", d: dip
+      ? "M" + bx + " " + by + "H" + (cx - 9) + "A9 9 0 0 0 " + (cx + 9) + " " + by + "H" + (bx + bw) + "V" + (by + bh) + "H" + bx + "Z"
+      : "M" + (bx + CH) + " " + by + "H" + (bx + bw) + "V" + (by + bh) + "H" + bx + "V" + (by + CH) + "Z" });
+    if (!dip) sv(svg, "circle", { class: "dm", cx: bx + 52, cy: by + 52, r: 6 });
+    var mk = sv(svg, "g", { transform: "translate(" + cx + " " + cy + ")" + (dip ? " rotate(-90)" : "") });
+    sv(mk, "text", { class: "mk big", y: dip ? -5 : -14, "text-anchor": "middle", "font-size": dip ? 13 : 25 }, "HUMAN USE");
+    sv(mk, "text", { class: "mk", y: dip ? 10 : 12, "text-anchor": "middle", "font-size": dip ? 8.5 : 11 }, dip ? "UNIT \u00b7 0.1.0 \u00b7 " + live + "/" + N : "UNIT \u00b7 0.1.0");
+    if (!dip) sv(mk, "text", { class: "mk", y: 30, "text-anchor": "middle", "font-size": 10 }, N + " PINS \u00b7 " + live + " CONNECTED");
+
+    /* category brackets, inside the package along each run of pins */
+    var gg = sv(svg, "g"), runs = [];
+    P.forEach(function (t, i) { var s = anchor(i).s, r = runs[runs.length - 1]; if (r && r.c === t.category && r.s === s) r.to = i; else runs.push({ c: t.category, s: s, from: i, to: i }); });
+    runs.forEach(function (r) {
+      var a = anchor(r.from), b = anchor(r.to), nx = -a.dx, ny = -a.dy, sg = (b.x - a.x) + (b.y - a.y) < 0 ? -1 : 1;
+      var ux = (a.dx ? 0 : 1) * sg, uy = (a.dx ? 1 : 0) * sg, e = LW / 2 + 3, ins = 21, tk = 5;
+      var x1 = a.x - ux * e + nx * ins, y1 = a.y - uy * e + ny * ins, x2 = b.x + ux * e + nx * ins, y2 = b.y + uy * e + ny * ins;
+      var p = sv(gg, "path", { class: "gbk", d: "M" + (x1 - nx * tk) + " " + (y1 - ny * tk) + "L" + x1 + " " + y1 + "L" + x2 + " " + y2 + "L" + (x2 - nx * tk) + " " + (y2 - ny * tk) });
+      var lx = (a.x + b.x) / 2 + nx * 30, ly = (a.y + b.y) / 2 + ny * 30;
+      var l = sv(gg, "text", { class: "gl", x: lx, y: ly, dy: ".35em", "text-anchor": "middle", "font-size": dip ? 8 : 8.5, transform: a.dx ? "rotate(-90 " + lx + " " + ly + ")" : undefined }, r.c.toUpperCase());
+      (marks[r.c] = marks[r.c] || []).push(p, l);
+    });
+
+    /* pins */
+    var pg = sv(svg, "g");
+    P.forEach(function (t, i) {
+      var a = anchor(i), nc = t.release === "later";
+      var g = sv(pg, "g", { class: "p" + (nc ? " nc" : ""), tabindex: 0, role: "button", "aria-label": "Pin " + (i + 1) + ", " + t.name + ", " + t.category + (nc ? ", not connected in 0.1" : "") + ". " + t.summary });
+      if (a.dx) sv(g, "rect", { class: "hit", x: a.dx < 0 ? a.x - G : a.x - 20, y: a.y - pitch / 2, width: G + 20, height: pitch });
+      else sv(g, "rect", { class: "hit", x: a.x - pitch / 2, y: a.dy < 0 ? a.y - G : a.y - 20, width: pitch, height: G + 20 });
+      if (a.dx) sv(g, "rect", { class: "ld", x: a.dx < 0 ? a.x - L : a.x, y: a.y - LW / 2, width: L, height: LW });
+      else sv(g, "rect", { class: "ld", x: a.x - LW / 2, y: a.dy < 0 ? a.y - L : a.y, width: LW, height: L });
+      var nx = a.x + a.dx * (L + 6), ny = a.y + a.dy * (L + 6);
+      sv(g, "text", { class: "nm", x: nx, y: ny, dy: ".35em", "font-size": fs, "text-anchor": a.dx ? (a.dx < 0 ? "end" : "start") : (a.dy < 0 ? "start" : "end"), transform: a.dx ? undefined : "rotate(-90 " + nx + " " + ny + ")" }, t.name);
+      sv(g, "text", { class: "no", x: a.x - a.dx * 11, y: a.y - a.dy * 11, dy: ".35em", "text-anchor": "middle", "font-size": dip ? 8.5 : 9.5 }, String(i + 1));
+      g.addEventListener("mouseenter", function () { stop(); sel(i); });
+      g.addEventListener("focus", function () { stop(); sel(i); });
+      g.addEventListener("click", function () { stop(); sel(i); });
+      g.addEventListener("keydown", function (e) {
+        var j = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1, Home: -i, End: N - 1 - i }[e.key];
+        if (j === undefined) return; e.preventDefault(); nodes[(i + j + N) % N].focus();
+      });
+      nodes.push(g);
+    });
+    if (lit) svg.classList.add("lit");
+    sel(cur);
+  }
+
+  function sel(i) {
+    if (nodes[cur]) nodes[cur].classList.remove("on");
+    cur = i; nodes[i].classList.add("on");
+    var t = P[i], nc = t.release === "later";
+    Object.keys(marks).forEach(function (c) { marks[c].forEach(function (n) { n.classList.toggle("cur", c === t.category); }); });
+    Object.keys(rows).forEach(function (c) { rows[c].classList.toggle("cur", c === t.category); });
+    $("po-n").textContent = pad(i + 1);
+    $("po-nm").textContent = t.name;
+    $("po-g").textContent = t.category + " \u00b7 " + CATALOG.categories[t.category];
+    $("po-f").textContent = t.summary;
+    var r = $("po-rel"); r.textContent = nc ? "NC \u00b7 later" : "Connected \u00b7 0.1"; r.classList.toggle("nc", nc);
+  }
+  function group(c, on) {
+    nodes.forEach(function (n, i) { n.classList.toggle("g", on && P[i].category === c); });
+    (marks[c] || []).forEach(function (n) { n.classList.toggle("on", on); });
+  }
+  function stop() { stopped = true; if (walk) { clearInterval(walk); walk = null; } }
+
+  ORDER.forEach(function (c) {
+    var idx = []; P.forEach(function (t, i) { if (t.category === c) idx.push(i); });
+    if (!idx.length) return;
+    var on = idx.filter(function (i) { return P[i].release !== "later"; }).length;
+    var b = el("button", { type: "button" },
+      el("span", { className: "r", textContent: pad(idx[0] + 1) + (idx.length > 1 ? "\u2013" + pad(idx[idx.length - 1] + 1) : "") }),
+      el("b", { textContent: c }),
+      el("span", { className: "d", textContent: CATALOG.categories[c] }),
+      el("span", { className: "c", textContent: on + "/" + idx.length }));
+    b.addEventListener("mouseenter", function () { stop(); group(c, true); });
+    b.addEventListener("mouseleave", function () { group(c, false); });
+    b.addEventListener("focus", function () { stop(); group(c, true); });
+    b.addEventListener("blur", function () { group(c, false); });
+    b.addEventListener("click", function () { stop(); sel(idx[0]); });
+    rows[c] = b;
+    $("po-gr").append(el("li", null, b));
+  });
+
+  draw();
+  if (narrow.addEventListener) narrow.addEventListener("change", draw);
+  $("po").addEventListener("pointerdown", stop);
+  new IntersectionObserver(function (es) {
+    seen = es[0].isIntersecting;
+    if (!seen || lit) return;
+    lit = true;
+    if (REDUCED) { svg.classList.add("lit"); return; }
+    nodes.forEach(function (n, i) { n.style.transitionDelay = i * 16 + "ms"; });
+    svg.classList.add("lit");
+    setTimeout(function () {
+      nodes.forEach(function (n) { n.style.transitionDelay = ""; });
+      if (!stopped) walk = setInterval(function () { if (seen && !pageHidden) sel((cur + 1) % N); }, 1500);
+    }, N * 16 + 500);
+  }, { threshold: 0.25 }).observe(svg);
+})();
+
+function bindCopy(b) {
+  b.addEventListener("click", function () {
+    var done = function () { b.textContent = "Copied"; b.classList.add("ok"); setTimeout(function () { b.textContent = "Copy"; b.classList.remove("ok"); }, 1600); };
+    if (navigator.clipboard) navigator.clipboard.writeText(b.dataset.copy).then(done, done); else done();
+  });
+}
+document.querySelectorAll("[data-copy]").forEach(bindCopy);
+
+document.addEventListener("visibilitychange", function () { pageHidden = document.hidden; });
+</script>
+<script type="module" src="/try.js"></script>
+</body>
+</html>

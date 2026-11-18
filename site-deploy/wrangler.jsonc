@@ -1,0 +1,12 @@
+{
+  "$schema": "https://developers.cloudflare.com/workers/configuration/configuration-schema.json",
+  "name": "human-use-site",
+  "compatibility_date": "2026-04-08",
+  "workers_dev": false,
+  "routes": [{ "pattern": "humanuse.dev", "custom_domain": true }],
+  "assets": {
+    "directory": "../site",
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "404-page"
+  }
+}

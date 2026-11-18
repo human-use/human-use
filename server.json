@@ -1,0 +1,19 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "dev.humanuse/human-use",
+  "title": "Human Use",
+  "description": "A device driver for a person: a tool call prints a card on a phone, and JSON comes back.",
+  "websiteUrl": "https://humanuse.dev",
+  "icons": [{ "src": "https://humanuse.dev/icon-192.png", "mimeType": "image/png", "sizes": ["192x192"] }],
+  "repository": { "url": "https://github.com/human-use/human-use", "source": "github" },
+  "version": "0.1.0",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "human-use",
+      "version": "0.1.0",
+      "transport": { "type": "stdio" },
+      "packageArguments": [{ "type": "positional", "value": "mcp" }]
+    }
+  ]
+}

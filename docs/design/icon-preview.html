@@ -1,0 +1,27 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>icon preview</title>
+<style>
+  body { margin: 0; padding: 24px; background: #F3F2EE; font: 12px ui-monospace, Consolas, monospace; color: #62645E; }
+  .row { display: flex; gap: 24px; align-items: end; flex-wrap: wrap; margin-bottom: 24px; }
+  figure { margin: 0; text-align: center; }
+  img { display: block; image-rendering: auto; border: 1px solid #D8D6CF; }
+  .dark { background: #121311; padding: 16px; }
+  .round img { border-radius: 22%; }
+</style>
+<div class="row">
+  <figure><img src="icon.svg" width="512" height="512"><figcaption>512</figcaption></figure>
+  <div>
+    <div class="row round">
+      <figure><img src="icon.svg" width="192" height="192"><figcaption>192 masked</figcaption></figure>
+      <figure><img src="icon.svg" width="64" height="64"><figcaption>64</figcaption></figure>
+      <figure><img src="icon.svg" width="32" height="32"><figcaption>32</figcaption></figure>
+      <figure><img src="icon.svg" width="16" height="16"><figcaption>16</figcaption></figure>
+    </div>
+    <div class="row dark">
+      <figure><img src="icon.svg" width="64" height="64"></figure>
+      <figure><img src="icon.svg" width="32" height="32"></figure>
+      <figure><img src="icon.svg" width="16" height="16"></figure>
+    </div>
+  </div>
+</div>

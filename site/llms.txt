@@ -1,0 +1,19 @@
+# Human Use
+
+> A device driver for a person. Human Use connects people to an AI agent as MCP tools: the agent calls `photo`, `errand`, `patch`, `eat` with a `unit`; a card appears on that unit's phone; the result returns as JSON. To install, run `npx -y human-use install`.
+
+One runtime drives any number of units: someone on the lead's team, or the lead. Each unit is reached through a closed catalog of tools. The agent passes parameters; a template writes the card. Replies pass through a driver model with no tools, which compiles them into the fields the agent asked for. Evidence is graded from 1 (a record the runtime holds) to 6 (the unit's word). Goals live in a resident runtime with a clock, a budget ledger and evidence, so they outlive any one agent session.
+
+## Install
+
+- [install.md](https://humanuse.dev/install.md): steps for an agent to install, add units, pair their phones and change settings
+
+## Errors
+
+- [HRT codes](https://humanuse.dev/codes/): every error code, how it arrives, and what the agent should do next
+- [codes.json](https://humanuse.dev/codes.json): the same registry as JSON
+
+## Source
+
+- [GitHub](https://github.com/human-use/human-use): runtime, MCP server, phone page, relay
+- [npm](https://www.npmjs.com/package/human-use): `human-use`

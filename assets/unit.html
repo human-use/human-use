@@ -1,0 +1,726 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#F3F2EE">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#121311">
+<title>human-use</title>
+<link rel="stylesheet" href="/ui.css">
+<style>
+html,body{overscroll-behavior:none}
+main{min-height:100svh;max-width:560px;margin:auto;display:flex;flex-direction:column;border-inline:1px solid var(--rule);padding-bottom:env(safe-area-inset-bottom)}
+.hd{display:flex;justify-content:space-between;gap:12px;padding:13px 16px;border-bottom:1px solid var(--ink);font:600 12px/1.2 var(--sans)}
+.hd:first-child{padding-top:max(13px,env(safe-area-inset-top))}
+.hd .mono{color:var(--ink2)}
+.sec{padding:16px}
+.tool{font:500 13px/1.3 var(--mono);margin-top:6px}
+.t1{font:600 27px/1.15 var(--sans);letter-spacing:-.01em;margin:16px 0 0;white-space:pre-wrap;overflow-wrap:anywhere}
+#instruction{font-size:17px;line-height:1.4;margin:8px 0 0;white-space:pre-wrap;overflow-wrap:anywhere}
+#instruction:empty{display:none}
+.meta{display:grid;grid-template-columns:1fr 1fr;border-block:1px solid var(--rule)}
+.meta>div{padding:10px 16px}
+.meta>div+div{border-left:1px solid var(--rule)}
+.meta .v{font:500 17px/1.3 var(--mono);font-variant-numeric:tabular-nums;margin-top:5px}
+#banner:empty{display:none}
+#banner{margin:0;padding:10px 16px;background:var(--signal);color:var(--on-signal);font:600 12px/1.4 var(--mono)}
+#sudo{display:flex;align-items:center;gap:14px;padding:12px 16px;background:var(--ink);color:var(--paper);font:600 11px/1.4 var(--mono);letter-spacing:.04em}
+#sudo b{font:800 46px/.85 var(--mono);letter-spacing:-.04em;color:var(--signal)}
+main:has(#sudo:not([hidden])){outline:3px solid var(--signal);outline-offset:-3px}
+#body{display:flex;flex-direction:column;gap:9px;margin-top:8px}
+#body button{min-height:48px;text-align:left;overflow-wrap:anywhere}
+#body button.primary{min-height:54px;display:flex;align-items:center;justify-content:space-between}
+#body button.primary:after{content:"→" / "";font-family:var(--mono)}
+#body button.secondary{background:none;border-color:var(--rule)}
+#body :is(input:not([type=checkbox]),textarea){width:100%;min-width:0;font-size:16px}
+textarea{min-height:104px;resize:vertical}
+.field span{display:block;color:var(--ink2);font:500 13px/1.4 var(--mono);margin-bottom:4px}
+.row{display:flex;gap:8px}
+.row button{flex:1;text-align:center!important}
+.check{display:flex;gap:12px;align-items:flex-start;padding:12px;border:1px solid var(--rule);background:var(--surface)}
+.check input{width:20px;height:20px;margin:0;flex:none;accent-color:var(--ink)}
+.note,#push-settings{color:var(--ink2);font-size:13px}
+.nonce{color:var(--signal);font:500 14px/1.3 var(--mono)}
+img.preview{max-width:100%;border:1px solid var(--ink)}
+#body video{width:100%;aspect-ratio:1;object-fit:cover;background:var(--ink);border:1px solid var(--ink)}
+#idle{flex:1;display:flex;flex-direction:column;justify-content:center;padding:16px}
+#idle .t1{margin-top:8px}
+#idle button{margin-top:32px;align-self:flex-start;background:none;border-color:var(--rule);font-size:13px}
+#push-settings:not(:empty){padding:0 16px 16px}
+footer button{border:0;background:none;padding:0;font:inherit;color:inherit;letter-spacing:inherit;text-transform:inherit}
+footer button.off{color:var(--signal)}
+footer{margin-top:auto;padding:12px 16px;border-top:1px solid var(--rule);color:var(--ink2);display:flex;justify-content:space-between}
+.box{border:1px solid var(--rule);background:var(--surface);padding:12px;min-height:78px;color:var(--ink2);white-space:pre-wrap;overflow-wrap:anywhere}
+.rows{margin:0;border-top:1px solid var(--ink)}
+.rows>div{display:grid;grid-template-columns:minmax(85px,1fr) 2fr;gap:12px;padding:11px 0;border-bottom:1px solid var(--rule);overflow-wrap:anywhere}
+.rows dt,.rows dd{font:500 14px/1.4 var(--mono);margin:0}
+.rows dt{color:var(--ink2)}
+.rows .sig{color:var(--signal)}
+.bar{height:2px;background:var(--rule);overflow:hidden}
+.bar i{display:block;height:100%;width:40%;background:var(--ink);animation:run 1.1s linear infinite}
+@keyframes run{from{transform:translateX(-100%)}to{transform:translateX(250%)}}
+@media (prefers-reduced-motion:reduce){.bar i{animation:none}}
+.theater-bar i{width:0;animation:none}
+</style>
+</head>
+<body>
+<main>
+  <header class="hd"><span id="brand">Human Use</span><span class="mono" id="round"></span></header>
+  <p id="banner" role="status"></p>
+  <div id="sudo" hidden><b>SUDO</b><span>DONE NEEDS PROOF<br>EXCUSES GET CHECKED</span></div>
+  <section class="sec" id="request" hidden>
+    <div class="lb">Tool</div><div class="tool" id="title"></div>
+    <h1 class="t1" id="task"></h1><p id="instruction"></p>
+  </section>
+  <div class="meta" id="times" hidden>
+    <div><div class="lb">Due</div><div class="v" id="due">—</div></div>
+    <div><div class="lb">Elapsed</div><div class="v" id="elapsed">—</div></div>
+  </div>
+  <section class="sec" id="response" hidden>
+    <div class="lb" id="response-label">Reply</div>
+    <div id="body"></div>
+  </section>
+  <div id="idle" hidden></div>
+  <div id="push-settings"></div>
+  <footer class="lb"><span id="queue"></span><button type="button" id="notify" hidden></button></footer>
+</main>
+<script>
+"use strict";
+var $ = function (id) { return document.getElementById(id); };
+function el(tag, props) {
+  var node = document.createElement(tag);
+  Object.assign(node, props || {});
+  for (var i = 2; i < arguments.length; i++) node.append(arguments[i]);
+  return node;
+}
+function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+
+var version = 0, shownJob = null, shownRound = 0, seen = new Set(), sending = false, lastSubmit = 0;
+var activeCard = null, pending = null, reporting = 0, latestState = null, lastReport = null;
+
+var relay = null;
+var leaving = false;   // the person unpaired this phone; stop polling
+
+async function api(path, body) {
+  if (relay) return relay.request(path, body);
+  var response = await fetch(path, body ? { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) } : undefined);
+  if (response.status === 401) { var error = new Error("unpaired"); error.unpaired = true; throw error; }
+  return response.json();
+}
+
+function clear() {
+  $("task").textContent = "";
+  $("instruction").textContent = "";
+  $("body").replaceChildren();
+  $("idle").replaceChildren();
+  $("round").textContent = "";
+  for (var id of ["request", "times", "response", "idle", "sudo"]) $(id).hidden = true;
+  activeCard = null;
+}
+
+function button(label, onClick, className) {
+  var node = el("button", { type: "button", textContent: label, className: className || "" });
+  node.onclick = onClick;
+  return node;
+}
+
+function showRequest(tool, task, label = "Reply") {
+  $("request").hidden = false;
+  $("response").hidden = false;
+  $("title").textContent = tool;
+  $("task").textContent = task;
+  $("response-label").textContent = label;
+}
+
+function duration(ms) {
+  var seconds = Math.max(0, Math.floor(ms / 1000));
+  return String(Math.floor(seconds / 60)).padStart(2, "0") + ":" + String(seconds % 60).padStart(2, "0");
+}
+function updateTime() {
+  if (!activeCard) return;
+  var now = Date.now();
+  var due = activeCard.due_at ? Date.parse(activeCard.due_at) - now : null;
+  $("due").textContent = due === null ? "—" : duration(due);
+  $("due").classList.toggle("sig", due !== null && due < 60000);
+  $("elapsed").textContent = activeCard.shown_at ? duration(now - Date.parse(activeCard.shown_at)) : "—";
+}
+setInterval(updateTime, 1000);
+
+// Only with no card open, and only on a second tap: afterwards this phone gets no cards until the lead pairs one again.
+function unpairButton() {
+  var armed = null;
+  var node = button("UNPAIR THIS PHONE", async function () {
+    if (!armed) {
+      node.textContent = "TAP AGAIN TO UNPAIR · NO MORE CARDS ON THIS PHONE";
+      armed = setTimeout(function () { armed = null; node.textContent = "UNPAIR THIS PHONE"; }, 5000);
+      return;
+    }
+    clearTimeout(armed);
+    node.disabled = true;
+    leaving = true;
+    try { await api("/api/unpair", {}); } catch (error) { /* runtime offline: the phone still forgets the link */ }
+    var message = "[UNPAIRED] this phone gets no more cards. To pair again, ";
+    if (relay) { relay.forget(); relay = null; showRelayPair(message + "scan the new QR code on the lead page."); }
+    else showPair(message + "enter the new code from the lead page.");
+  });
+  return node;
+}
+
+function showPair(message) {
+  clear();
+  shownJob = null;
+  showRequest("Pairing", "Unpaired device", "Pairing");
+  $("banner").textContent = "";
+  $("queue").textContent = "";
+  var input = el("input", { type: "text", inputMode: "numeric", placeholder: "6-digit code", maxLength: 6, autocomplete: "off" });
+  var go = button("PAIR", async function () {
+    go.disabled = true;
+    var response = await fetch("/api/pair", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ code: input.value.trim() }) });
+    if (response.ok) { leaving = false; loop(); }
+    else if (response.status === 429) showPair("[REJECTED] too many wrong codes. Wait a minute, then enter the current code from the lead page.");
+    else showPair("[REJECTED] code not accepted. Get the current code from the lead page.");
+  }, "primary");
+  $("body").append(el("div", { className: "note", textContent: message || "Enter the code the lead page shows for this unit, or the one human-use pair --unit <name> prints." }), input, go);
+}
+
+function showRelayPair(message) {
+  clear();
+  shownJob = null;
+  showRequest("Pairing", "Unpaired device", "Pairing");
+  $("banner").textContent = message || "";
+  $("queue").textContent = "";
+  var pairWith = function (text) {
+    var link = new URL(text.trim());
+    if (link.origin !== location.origin || !/^#[A-Za-z0-9_-]{22}\.[A-Za-z0-9_-]{43}(\.try)?$/.test(link.hash)) throw new Error("invalid link");
+    history.replaceState(null, "", location.pathname + location.search + link.hash);
+    location.reload();
+  };
+  // A Home Screen app on iPhone does not share storage with Safari, so it starts unpaired: scanning the QR again is the short way.
+  var photo = el("input", { type: "file", accept: "image/*", hidden: true });
+  photo.setAttribute("capture", "environment");
+  var viewer = el("video", { muted: true, hidden: true });
+  viewer.setAttribute("playsinline", "");
+  viewer.setAttribute("muted", "");
+  var stopScan = null;
+  var scan = button("SCAN PAIRING QR", function () { void scanLive(); }, "primary");
+  var cancel = button("STOP SCANNING", function () { if (stopScan) stopScan(); }, "secondary");
+  cancel.hidden = true;
+  // Without a live camera (refused, or not offered) a still photo of the code works the same way.
+  var usePhoto = function (reason) {
+    $("banner").textContent = reason;
+    scan.textContent = "PHOTOGRAPH PAIRING QR";
+    scan.onclick = function () { photo.click(); };
+  };
+  var scanLive = async function () {
+    $("banner").textContent = "";
+    var stream = null, jsQR;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+      jsQR = await loadQrReader();
+    } catch {
+      if (stream) stream.getTracks().forEach(function (track) { track.stop(); });
+      usePhoto("[NO LIVE CAMERA] allow the camera for this page, or photograph the code.");
+      return;
+    }
+    var running = true;
+    stopScan = function () {
+      running = false;
+      stream.getTracks().forEach(function (track) { track.stop(); });
+      viewer.srcObject = null;
+      viewer.hidden = true; cancel.hidden = true; scan.hidden = false;
+    };
+    viewer.srcObject = stream;
+    viewer.hidden = false; cancel.hidden = false; scan.hidden = true;
+    await viewer.play().catch(function () {});
+    var canvas = document.createElement("canvas");
+    var g = canvas.getContext("2d", { willReadFrequently: true });
+    while (running) {
+      await sleep(150);
+      if (!running || !viewer.videoWidth) continue;
+      var scale = Math.min(1, 960 / Math.max(viewer.videoWidth, viewer.videoHeight));
+      canvas.width = Math.round(viewer.videoWidth * scale);
+      canvas.height = Math.round(viewer.videoHeight * scale);
+      g.drawImage(viewer, 0, 0, canvas.width, canvas.height);
+      var found = jsQR(g.getImageData(0, 0, canvas.width, canvas.height).data, canvas.width, canvas.height);
+      if (!found || !found.data) continue;
+      try {
+        pairWith(found.data);
+        stopScan();
+        return;
+      } catch { $("banner").textContent = "[NOT A PAIRING QR] point at the code human-use shows."; }
+    }
+  };
+  photo.onchange = async function () {
+    var file = photo.files && photo.files[0];
+    photo.value = "";
+    if (!file) return;
+    var label = scan.textContent;
+    scan.disabled = true;
+    scan.textContent = "READING…";
+    try {
+      var text = await readQr(file);
+      if (!text) throw new Error("no code");
+      pairWith(text);
+    } catch {
+      $("banner").textContent = "[NOT READ] no pairing QR in that photo. Fill the frame with the code and try again.";
+      scan.disabled = false;
+      scan.textContent = label;
+    }
+  };
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) usePhoto("");
+  var input = el("input", { type: "url", placeholder: "or paste the pairing link", autocomplete: "off" });
+  var join = button("PAIR", function () {
+    try { pairWith(input.value); } catch { $("banner").textContent = "[REJECTED] paste the complete pairing link from human-use."; }
+  });
+  $("body").append(el("div", { className: "note", textContent: "Scan the pairing QR on the computer (the lead page or human-use pair shows it), or paste the link." }), scan, viewer, cancel, photo, input, join);
+}
+
+// The decoder is loaded only when someone scans.
+var qrReader = null;
+function loadQrReader() {
+  if (!qrReader) qrReader = new Promise(function (resolve, reject) {
+    var script = el("script", { src: "/jsqr.js" });
+    script.onload = function () { resolve(window.jsQR); };
+    script.onerror = function () { qrReader = null; reject(new Error("decoder unavailable")); };
+    document.head.append(script);
+  });
+  return qrReader;
+}
+async function readQr(file) {
+  var jsQR = await loadQrReader();
+  var url = URL.createObjectURL(file);
+  try {
+    var image = await loadImage(url);
+    // A phone photo is too large to search quickly; try a reduced copy first, then a sharper one.
+    for (var side of [1280, 2400]) {
+      var scale = Math.min(1, side / Math.max(image.width, image.height));
+      var canvas = el("canvas", { width: Math.round(image.width * scale), height: Math.round(image.height * scale) });
+      var g = canvas.getContext("2d", { willReadFrequently: true });
+      g.drawImage(image, 0, 0, canvas.width, canvas.height);
+      var found = jsQR(g.getImageData(0, 0, canvas.width, canvas.height).data, canvas.width, canvas.height);
+      if (found) return found.data;
+      if (scale === 1) break;
+    }
+    return null;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+function needsHomeScreen() {
+  var ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  return ios && navigator.standalone !== true && !matchMedia("(display-mode: standalone)").matches;
+}
+
+// Always shown in the footer, card or no card: whether a locked phone will hear about the next card.
+function setNotify(label, action) {
+  var notify = $("notify");
+  notify.textContent = label;
+  notify.className = action ? "off" : "";
+  notify.disabled = !action;
+  notify.onclick = action;
+  notify.hidden = false;
+}
+
+async function setupPush() {
+  var settings = $("push-settings");
+  settings.textContent = "";
+  if (needsHomeScreen()) {
+    setNotify("NOTIFICATIONS OFF", function () {
+      settings.textContent = "For notifications on iPhone, use Share → Add to Home Screen. Open the icon and scan the pairing QR again.";
+    });
+    return;
+  }
+  if (!("PushManager" in window) || !("Notification" in window) || !("serviceWorker" in navigator)) {
+    setNotify("NOTIFICATIONS UNSUPPORTED", null);
+    return;
+  }
+  var blocked = function () {
+    setNotify("NOTIFICATIONS BLOCKED", function () {
+      settings.textContent = "Notifications are blocked for this site. Allow them in the browser's site settings, then reload this page.";
+    });
+  };
+  if (Notification.permission === "denied") { blocked(); return; }
+  try {
+    await navigator.serviceWorker.register("/relay-sw.js");
+    var registration = await navigator.serviceWorker.ready;
+    var key = await api("/api/push/key");
+    if (!key.public_key) throw new Error("push key missing");
+    var serverKey = Uint8Array.from(atob(key.public_key.replace(/-/g, "+").replace(/_/g, "/")), function (c) { return c.charCodeAt(0); });
+    var current = await registration.pushManager.getSubscription();
+    var register = async function (subscription) {
+      var response = await api("/api/push/subscription", subscription.toJSON());
+      if (!response.ok) throw new Error("subscription rejected");
+      settings.textContent = "";
+      setNotify("NOTIFICATIONS ON", null);
+    };
+    if (current && current.options.applicationServerKey &&
+      new Uint8Array(current.options.applicationServerKey).length === serverKey.length &&
+      new Uint8Array(current.options.applicationServerKey).every(function (value, index) { return value === serverKey[index]; })) {
+      await register(current);
+      return;
+    }
+    if (current) await current.unsubscribe();
+    var turnOn = async function () {
+      $("notify").disabled = true;
+      try {
+        await register(await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: serverKey }));
+      } catch {
+        if (Notification.permission === "denied") blocked(); else setNotify("NOTIFICATIONS OFF · RETRY", turnOn);
+      }
+    };
+    setNotify("NOTIFICATIONS OFF · TURN ON", turnOn);
+  } catch (error) {
+    if (!error.relayReplaced) setNotify("NOTIFICATIONS OFF · RETRY", setupPush);
+  }
+}
+
+function playTheater(item) {
+  return new Promise(function (resolve) {
+    clear();
+    shownJob = null;
+    $("banner").textContent = "";
+    var now = Date.now();
+    activeCard = { shown_at: new Date(now).toISOString(), due_at: new Date(now + item.seconds * 1000).toISOString() };
+    showRequest(item.title.replace(/^human\./, ""), item.text, "Playing");
+    $("round").textContent = item.id;
+    $("times").hidden = false;
+    updateTime();
+    var bar = el("i");
+    $("body").append(el("div", { className: "bar theater-bar" }, bar));
+    requestAnimationFrame(function () { requestAnimationFrame(function () {
+      bar.style.transition = "width " + item.seconds + "s linear";
+      bar.style.width = "100%";
+    }); });
+    setTimeout(resolve, item.seconds * 1000);
+  });
+}
+
+function showCompiling(answer) {
+  $("response-label").textContent = "Compiling";
+  var text = answer.text || answer.choice || (answer.value !== undefined ? String(answer.value) : "");
+  $("body").replaceChildren();
+  if (text) $("body").append(el("div", { className: "box", textContent: text }));
+  $("body").append(el("div", { className: "bar" }, el("i")));
+}
+
+function showReport(report) {
+  lastReport = report;
+  $("response-label").textContent = "Report";
+  $("instruction").textContent = "";
+  $("banner").textContent = "";
+  var rows = el("dl", { className: "rows" });
+  for (var [key, value] of Object.entries(report.result)) {
+    rows.append(el("div", {}, el("dt", { textContent: key }), el("dd", {
+      textContent: value === null ? "null" : typeof value === "object" ? JSON.stringify(value) : String(value),
+      className: value === null || key === "missing" || key === "unverified" ? "sig" : ""
+    })));
+  }
+  var dismiss = function () {
+    clearTimeout(reporting);
+    reporting = 0;
+    shownJob = null;
+    if (latestState) void render(latestState);
+  };
+  $("body").replaceChildren(rows, button("Continue", dismiss, "primary"));
+  reporting = setTimeout(dismiss, 3000);
+}
+
+async function submit(card, answer) {
+  if (sending || pending) return;
+  sending = true;
+  var buttons = document.querySelectorAll("#body button:not(:disabled)");
+  buttons.forEach(function (node) { node.disabled = true; });
+  pending = { card: card, answer: answer };
+  try {
+    var out = await api("/api/answer", { job_id: card.job_id, round: card.round, answer: answer });
+    if (out.error) {
+      pending = null;
+      $("banner").textContent = "[" + out.error + "]";
+      buttons.forEach(function (node) { node.disabled = false; });
+      return;
+    }
+    lastSubmit = Date.now();
+    showCompiling(answer);
+    if (latestState) void render(latestState);
+  } catch (error) {
+    pending = null;
+    if (error.unpaired) { showPair(); return; }
+    $("banner").textContent = "[SEND FAILED] retry";
+    buttons.forEach(function (node) { node.disabled = false; });
+  } finally { sending = false; }
+}
+
+function failRow(card) {
+  var reason = el("textarea", { placeholder: "blocker", hidden: true });
+  var send = button("SUBMIT FAILURE", function () { if (reason.value.trim()) submit(card, { choice: "failed", text: reason.value.trim() }); }, "secondary");
+  send.hidden = true;
+  var fail = button("FAILED", function () { fail.hidden = true; reason.hidden = false; send.hidden = false; reason.focus(); }, "secondary");
+  $("body").append(fail, reason, send);
+}
+
+function shrink(file) {
+  return new Promise(function (resolve, reject) {
+    var image = new Image();
+    var url = URL.createObjectURL(file);
+    image.onload = function () {
+      var scale = Math.min(1, 1600 / Math.max(image.width, image.height));
+      var canvas = document.createElement("canvas");
+      canvas.width = Math.round(image.width * scale);
+      canvas.height = Math.round(image.height * scale);
+      canvas.getContext("2d").drawImage(image, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL("image/jpeg", 0.85));
+    };
+    image.onerror = reject;
+    image.src = url;
+  });
+}
+
+function readAs(file) {
+  return new Promise(function (resolve, reject) {
+    var reader = new FileReader();
+    reader.onload = function () { resolve(reader.result); };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+var MAX_SHOTS = 4;
+
+function loadImage(url) {
+  return new Promise(function (resolve, reject) {
+    var image = new Image();
+    image.onload = function () { resolve(image); };
+    image.onerror = reject;
+    image.src = url;
+  });
+}
+
+// Several shots leave the phone as one picture, two to a row, so the runtime still stores one file per answer.
+async function stitch(shots) {
+  if (shots.length === 1) return shots[0];
+  var images = await Promise.all(shots.map(loadImage));
+  var cell = 800, cols = 2, rows = Math.ceil(images.length / cols);
+  var canvas = document.createElement("canvas");
+  canvas.width = cols * cell;
+  canvas.height = rows * cell;
+  var g = canvas.getContext("2d");
+  g.fillStyle = "#FBFAF7";
+  g.fillRect(0, 0, canvas.width, canvas.height);
+  images.forEach(function (image, index) {
+    var scale = Math.min(cell / image.width, cell / image.height);
+    var w = image.width * scale, h = image.height * scale;
+    g.drawImage(image, (index % cols) * cell + (cell - w) / 2, Math.floor(index / cols) * cell + (cell - h) / 2, w, h);
+  });
+  return canvas.toDataURL("image/jpeg", 0.85);
+}
+
+function capture(card, accept, label) {
+  if (card.nonce) $("body").append(el("div", { className: "nonce", textContent: "LIVENESS: " + card.nonce }));
+  var input = el("input", { type: "file", accept: accept, hidden: true });
+  input.setAttribute("capture", "environment");
+  var photos = accept.indexOf("image/") === 0;
+  var open = button(label, function () { input.click(); }, "primary");
+  var restart = button("RETAKE", function () {
+    shots = []; data = null; fresh = true;
+    preview.hidden = true; restart.hidden = true; send.hidden = true;
+    open.textContent = label; open.className = "primary"; open.hidden = false;
+  });
+  restart.hidden = true;
+  var preview = el("img", { className: "preview", hidden: true, alt: "" });
+  var note = el("textarea", { placeholder: "note (optional)" });
+  var shots = [], data = null, fresh = true;
+  var send = button("SUBMIT", function () { if (data) submit(card, { file: data, fresh: fresh, text: note.value.trim() || undefined }); }, "primary");
+  send.hidden = true;
+  input.onchange = async function () {
+    var file = input.files[0];
+    input.value = "";
+    if (!file) return;
+    var live = Date.now() - file.lastModified < 120000;
+    if (file.type.indexOf("image/") === 0) {
+      shots.push(await shrink(file));
+      fresh = fresh && live;
+      data = await stitch(shots);
+      preview.src = data;
+      preview.hidden = false;
+    } else {
+      data = await readAs(file);
+      fresh = live;
+    }
+    if (photos) {
+      open.textContent = "ADD PHOTO · " + shots.length + "/" + MAX_SHOTS;
+      open.hidden = shots.length >= MAX_SHOTS;
+      restart.hidden = false;
+    } else open.textContent = "RETAKE";
+    open.className = "";
+    send.hidden = false;
+  };
+  $("body").append(input, open, restart, preview, note, send);
+  failRow(card);
+}
+
+var KINDS = {
+  choice: function (card) {
+    (card.options || []).forEach(function (option) { $("body").append(button(option, function () { submit(card, { choice: option }); })); });
+  },
+  slider: function (card) {
+    var row = el("div", { className: "row" });
+    for (var value = 1; value <= 5; value++) (function (n) { row.append(button(String(n), function () { submit(card, { value: n }); })); })(value);
+    $("body").append(row);
+  },
+  checklist: function (card) {
+    var boxes = (card.steps || []).map(function (step) {
+      var box = el("input", { type: "checkbox" });
+      $("body").append(el("label", { className: "check" }, box, el("span", { textContent: step })));
+      return box;
+    });
+    $("body").append(button("SUBMIT", function () {
+      submit(card, { checked: boxes.map(function (box, index) { return box.checked ? index : -1; }).filter(function (index) { return index >= 0; }) });
+    }, "primary"));
+  },
+  form: function (card) {
+    var fields = card.fields ? Object.keys(card.fields) : [];
+    var inputs = fields.map(function (name) {
+      var input = el("input", { type: "text", autocomplete: "off" });
+      $("body").append(el("label", { className: "field" }, el("span", { textContent: name + " — " + card.fields[name] }), input));
+      return [name, input];
+    });
+    var free = el("textarea", { placeholder: fields.length ? "note (optional)" : "input" });
+    $("body").append(free, button("SUBMIT", function () {
+      var lines = inputs.filter(function (pair) { return pair[1].value.trim(); }).map(function (pair) { return pair[0] + ": " + pair[1].value.trim(); });
+      if (free.value.trim()) lines.push(free.value.trim());
+      if (lines.length) submit(card, { text: lines.join("\n") });
+    }, "primary"));
+  },
+  camera: function (card) { capture(card, "image/*", "OPEN CAMERA"); },
+  audio: function (card) { capture(card, "audio/*", "RECORD"); },
+  location: function (card) {
+    $("body").append(button("ARRIVED", function () {
+      var done = function (where) { submit(card, where ? { location: where } : { text: "arrived. no gps on this channel." }); };
+      if (!navigator.geolocation || !window.isSecureContext) return done(null);
+      navigator.geolocation.getCurrentPosition(function (p) { done({ lat: p.coords.latitude, lon: p.coords.longitude }); }, function () { done(null); }, { timeout: 6000 });
+    }, "primary"));
+    failRow(card);
+  },
+  confirm: function (card) {
+    $("body").append(button("DONE", function () { submit(card, { choice: "done" }); }, "primary"));
+    failRow(card);
+  }
+};
+
+async function render(state) {
+  latestState = state;
+  var card = state.card;
+  $("queue").textContent = state.queued ? state.queued + " queued" : "";
+  $("brand").textContent = state.unit ? "Human Use · " + state.unit : "Human Use";
+  if (reporting) return;
+  var terminalNotice = null;
+  if (pending) {
+    var sent = pending.card;
+    var report = (state.reports || []).find(function (item) { return item.job_id === sent.job_id && item.round === sent.round; });
+    if (report) {
+      pending = null;
+      if (report.result) { showReport(report); return; }
+      terminalNotice = report.reason;
+    } else if (card && card.job_id === sent.job_id && card.round > sent.round) pending = null;
+    else if (!state.reports && (!card || card.job_id !== sent.job_id)) pending = null;
+    else if (card && card.job_id !== sent.job_id && card.priority === "preempt") pending = null;
+    else return;
+  }
+  for (var i = 0; i < state.theater.length; i++) {
+    var item = state.theater[i];
+    if (!seen.has(item.id)) { seen.add(item.id); await playTheater(item); }
+  }
+  if (!card) {
+    shownJob = null;
+    clear();
+    $("banner").textContent = terminalNotice || state.notice || "";
+    $("round").textContent = "QUEUE " + state.queued;
+    $("idle").hidden = false;
+    $("idle").append(el("div", { className: "lb", textContent: "Status" }),
+      el("div", { className: "t1", textContent: state.review ? "Compiling" : "Nothing pending" }));
+    if (lastReport) $("idle").append(el("div", { className: "note mono",
+      textContent: lastReport.job_id + " · " + new Date(lastReport.at).toLocaleTimeString() }));
+    $("idle").append(unpairButton());
+    return;
+  }
+  if (card.job_id === shownJob && card.round === shownRound) return;
+  shownJob = card.job_id;
+  shownRound = card.round;
+  clear();
+  activeCard = card;
+  var prefix = card.tool.toUpperCase() + " ";
+  var task = card.round > 1 ? card.task || card.text : card.text;
+  if (task.startsWith(prefix)) task = task.slice(prefix.length);
+  showRequest(card.title.replace(/^human\./, ""), task);
+  if (card.round > 1 && card.task) $("instruction").textContent = card.text;
+  $("round").textContent = card.job_id + (card.round > 1 ? " · " + card.round : "");
+  $("times").hidden = false;
+  $("sudo").hidden = !card.sudo;
+  updateTime();
+  if (card.rejected) $("banner").textContent = "REJECTED · " + card.rejected;
+  else if (card.priority === "preempt") $("banner").textContent = state.stacked ? "SUSPENDED BY HIGH-PRIORITY INTERRUPT" : "PREEMPT";
+  else $("banner").textContent = terminalNotice || state.notice || "";
+  if (!card.rejected && card.priority !== "preempt" && Date.now() - lastSubmit < 5000 && state.queued) {
+    $("body").append(el("div", { className: "note", textContent: "ATTENTION WINDOW CAPTURED — " + state.queued + " QUEUED" }));
+  }
+  (KINDS[card.kind] || KINDS.form)(card);
+}
+
+async function loop() {
+  for (;;) {
+    try {
+      var state = await api("/api/state?v=" + version);
+      if (leaving) return;
+      if ($("banner").textContent === "[RELAY OFFLINE] reconnecting") $("banner").textContent = "";
+      version = state.v;
+      if (!sending) await render(state); else latestState = state;
+    } catch (error) {
+      if (leaving) return;
+      if (error.unpaired) { showPair(); return; }
+      if (error.relayRetired) {
+        var trial = relay && relay.trial;
+        relay = null;
+        showRelayPair(trial ? "[TRIAL ENDED] the page that printed these cards closed the link." : "[LINK RETIRED] the lead issued a new link. Scan it from the lead page.");
+        return;
+      }
+      if (error.relayReplaced) { $("banner").textContent = "[DISCONNECTED] another phone page is connected. Reload to reconnect."; return; }
+      if (relay) $("banner").textContent = "[RELAY OFFLINE] reconnecting";
+      await sleep(2000);
+    }
+  }
+}
+async function start() {
+  if (document.documentElement.hasAttribute("data-relay")) {
+    document.head.append(el("link", { rel: "manifest", href: "/manifest.webmanifest" }));
+    document.head.append(el("link", { rel: "icon", href: "/icon-192.png" }));
+    document.head.append(el("link", { rel: "apple-touch-icon", href: "/icon-192.png" }));
+    if (!window.isSecureContext) { showRequest("Relay", "Open this page over HTTPS"); return; }
+    // The page can open while the network or the relay is briefly away. Keep trying instead of stopping on a message.
+    // data-relay is the relay's deploy id; asking for that deploy's client keeps every module of this page from one deploy.
+    var deploy = encodeURIComponent(document.documentElement.getAttribute("data-relay") || "");
+    for (var attempt = 0; ; attempt++) {
+      try {
+        relay = await (await import("/relay-client.mjs?v=" + deploy + (attempt ? "&retry=" + attempt : ""))).openPhoneRelay();
+        $("banner").textContent = "";
+        break;
+      } catch (error) {
+        $("banner").textContent = "[RELAY UNREACHABLE] " + ((error && error.message) || "no answer") + " · retrying";
+        // A module that failed once can stay failed for this page; after a few tries load the page again.
+        if (attempt >= 4) { setTimeout(function () { location.reload(); }, 3000); return; }
+        await sleep(3000);
+      }
+    }
+    if (!relay) {
+      showRelayPair();
+      return;
+    }
+    if (!relay.trial) void setupPush();
+  }
+  await loop();
+}
+void start();
+</script>
+</body>
+</html>

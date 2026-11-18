@@ -1,0 +1,426 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>human-use · lead</title>
+<link rel="stylesheet" href="/ui.css">
+<style>
+main{max-width:1180px;margin:auto;padding:28px 20px 64px}
+header{display:flex;justify-content:space-between;align-items:end;gap:12px;border-bottom:1px solid var(--ink);padding-bottom:12px}
+h1{margin:0;font:600 22px/1.2 var(--sans)}
+h2{font:600 11px/1.2 var(--sans);letter-spacing:.1em;text-transform:uppercase;color:var(--ink2);margin:0 0 12px}
+h3{font:600 17px/1.3 var(--sans);margin:8px 0}
+p{margin:6px 0}
+.status-strip{display:grid;grid-template-columns:repeat(5,1fr);border:1px solid var(--ink);border-top:0}
+.status-strip>div{padding:12px 16px;min-width:0;overflow-wrap:anywhere}
+.status-strip>div+div{border-left:1px solid var(--rule)}
+.status-strip span{display:block;margin-top:6px;font-size:14px}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(270px,320px);border:1px solid var(--ink);border-top:0}
+.layout>aside{border-left:1px solid var(--rule)}
+section{min-width:0;padding:16px}
+aside section+section{border-top:1px solid var(--rule)}
+article{border-top:1px solid var(--rule);padding:10px 0}
+label{display:grid;gap:4px;color:var(--ink2);font-family:var(--mono);font-size:12px}
+input,textarea{width:100%;min-width:0;font-size:14px;font-family:var(--sans)}
+textarea{resize:vertical}
+form{display:grid;gap:10px}
+form button{justify-self:start}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:end}
+.row>*{flex:1;min-width:95px}
+summary{cursor:pointer;overflow-wrap:anywhere}
+tr.detail>td{padding:4px 0 14px;background:var(--surface)}
+tr.detail h4{margin:10px 12px 4px;font:600 10.5px/1.2 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--ink2)}
+tr.detail pre{margin:0 12px}
+.trace{display:grid;grid-template-columns:max-content max-content minmax(0,1fr);gap:4px 14px;margin:0 12px;font-size:13px}
+.trace .t{font:12px var(--mono);color:var(--ink2)}
+.trace .who{font:600 10.5px/1.9 var(--mono);letter-spacing:.06em;color:var(--ink2)}
+.trace .unit{color:var(--ink)}
+.trace .driver,.trace .end{font-family:var(--mono);font-size:12px}
+.trace .driver.rejected{color:var(--signal)}
+pre{margin:6px 0;padding:8px;background:var(--surface);border:1px solid var(--rule);white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;max-height:16rem;overflow:auto}
+#calls{max-height:72vh;min-height:90px;overflow:auto}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:520px}
+th{color:var(--ink2);font:600 10.5px/1.2 var(--sans);letter-spacing:.08em;text-transform:uppercase;text-align:left;white-space:nowrap}
+th,td{padding:9px 9px 9px 0;border-bottom:1px solid var(--rule);vertical-align:top;overflow-wrap:anywhere}
+td.mono{font-size:12px}
+td:nth-child(5){min-width:90px}
+td:nth-child(7){min-width:85px;max-width:230px}
+td:is(:nth-child(1),:nth-child(2),:nth-child(3),:nth-child(4),:nth-child(6),:nth-child(9)),td a{white-space:nowrap}
+#units article:first-child{border-top:0}
+#units article p{font-size:13px}
+#pair{border-top:1px solid var(--rule);margin-top:6px;padding-top:6px}
+#new-unit{margin-top:12px}
+.quiet{color:var(--ink2)}
+.error{color:var(--signal)}
+img{display:block;margin-top:10px;max-width:100%;height:auto;background:white}
+@media(max-width:790px){.layout{grid-template-columns:1fr}.layout>aside{border-left:0;border-top:1px solid var(--rule)}.status-strip{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:480px){main{padding:18px 12px}.status-strip{grid-template-columns:repeat(2,1fr)}section{padding:12px}}
+</style>
+</head>
+<body>
+<main>
+  <header><h1>Human Use</h1><span class="lb">Lead</span></header>
+  <div class="status-strip">
+    <div><div class="lb">Runtime</div><span id="runtime-status">Connecting…</span></div>
+    <div><div class="lb">Units</div><span id="phone-status">—</span></div>
+    <div><div class="lb">Driver</div><span class="mono" id="driver-status">—</span></div>
+    <div><div class="lb">Background</div><span class="mono" id="brain-status">—</span></div>
+    <div><div class="lb">Open</div><span class="mono" id="open-count">—</span></div>
+  </div>
+  <div class="layout">
+    <section aria-labelledby="calls-heading">
+      <h2 id="calls-heading">Calls</h2>
+      <p class="error" id="connection" role="status"></p>
+      <div id="calls">
+        <table aria-label="Recent calls" id="call-table">
+          <thead><tr><th>Time</th><th>Unit</th><th>Job</th><th>Tool</th><th>Args</th><th>State</th><th>Result</th><th>Ev</th><th>Took</th></tr></thead>
+          <tbody id="call-rows"></tbody>
+        </table>
+        <p class="quiet" id="empty">No calls yet.</p>
+      </div>
+    </section>
+    <aside>
+    <section aria-labelledby="goals-heading">
+      <h2 id="goals-heading">Goals</h2>
+      <div id="goals"></div>
+      <form id="new-goal">
+        <label>goal<textarea name="goal" required rows="2"></textarea></label>
+        <label>done_when<input name="done_when"></label>
+        <div class="row">
+          <label>deadline<input name="deadline" type="date"></label>
+          <label>monthly budget<input name="budget" type="number" min="0" step="any"></label>
+          <label>currency<input name="currency" value="USD" maxlength="3" pattern="[A-Za-z]{3}"></label>
+        </div>
+        <button class="primary">Add goal</button>
+      </form>
+      <p class="error" id="goal-message" role="status"></p>
+    </section>
+      <section aria-labelledby="units-heading">
+        <h2 id="units-heading">Units</h2>
+        <div id="units"></div>
+        <div id="pair" hidden>
+          <div class="lb" id="pair-unit"></div>
+          <label>Phone link<input id="link" readonly></label>
+          <button id="copy" type="button">Copy link</button>
+          <img id="qr" alt="Phone pairing QR code" width="224" height="224">
+          <button id="new-pair" type="button">New link</button>
+          <div id="new-pair-confirm" hidden>
+            <p id="new-pair-text"></p>
+            <button id="new-pair-yes" type="button" class="primary">Replace the link</button>
+            <button id="new-pair-no" type="button">Keep the current link</button>
+          </div>
+        </div>
+        <p id="pair-message" class="quiet" role="status"></p>
+        <form id="new-unit">
+          <label>unit name<input name="name" required maxlength="24" pattern="[A-Za-z0-9][A-Za-z0-9_\-]{0,23}" placeholder="mika" autocomplete="off"></label>
+          <button class="primary">Add unit</button>
+        </form>
+      </section>
+      <section aria-labelledby="settings-heading">
+        <h2 id="settings-heading">Settings</h2>
+        <form id="settings">
+          <label>driver<input name="driver" aria-describedby="driver-help"></label>
+          <label>brain<input name="brain" aria-describedby="driver-help"></label>
+          <div id="driver-help" class="quiet">For example, codex:gpt-6-luna:medium or none.</div>
+          <button>Save settings</button>
+        </form>
+        <p id="settings-message" class="quiet" role="status"></p>
+      </section>
+    </aside>
+  </div>
+</main>
+<script type="module">
+const $ = id => document.getElementById(id);
+function element(tag, text) {
+  const node = document.createElement(tag);
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+async function request(path, body) {
+  const init = body === undefined ? {} : {
+    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body)
+  };
+  const response = await fetch("/owner/" + path, init);
+  const value = await response.json();
+  if (!response.ok) throw new Error(value.message ?? value.error ?? String(response.status));
+  return value;
+}
+const callRows = new Map();
+function showCalls(calls) {
+  const list = $("calls");
+  const atTop = list.scrollTop < 16;
+  const remaining = new Set(callRows.keys());
+  $("empty").hidden = calls.length > 0;
+  for (const call of [...calls].reverse()) {
+    remaining.delete(call.id);
+    let row = callRows.get(call.id);
+    if (!row) {
+      const tr = element("tr");
+      const cells = Array.from({ length: 9 }, () => element("td"));
+      for (const index of [0,1,2,3,6,7,8]) cells[index].className = "mono";
+      const details = element("details");
+      const summary = element("summary");
+      details.append(summary);
+      cells[6].append(details);
+      tr.append(...cells);
+      // Opening a call shows its trace across the whole table: card, unit, driver, then what the agent got.
+      const detail = element("tr");
+      detail.className = "detail";
+      detail.hidden = true;
+      const wide = element("td");
+      wide.colSpan = 9;
+      const trace = element("div");
+      trace.className = "trace";
+      const raw = element("pre");
+      wide.append(element("h4", "Trace"), trace, element("h4", "Agent view"), raw);
+      detail.append(wide);
+      details.addEventListener("toggle", () => { detail.hidden = !details.open; });
+      $("call-rows").prepend(tr, detail);
+      row = { tr, detail, cells, summary, trace, raw, display: "" };
+      callRows.set(call.id, row);
+    }
+    const { cells, summary, trace, raw } = row;
+    cells[0].textContent = new Date(call.at).toLocaleTimeString([], { hour:"2-digit", minute:"2-digit" });
+    cells[1].textContent = call.unit ?? "—";
+    cells[2].textContent = call.job ?? "—";
+    cells[3].textContent = call.tool;
+    cells[4].textContent = call.task || JSON.stringify(call.args ?? {});
+    cells[5].textContent = call.state;
+    cells[5].className = ["escalated","error"].includes(call.state) ? "sig" : "";
+    cells[8].textContent = call.took_s + "s";
+    const { args, result, response, call_state, reason, evidence, rounds, compiled } = call;
+    const view = JSON.stringify({ args, response, result, call_state, reason }, null, 2);
+    summary.textContent = rounds.length ? "Trace" : reason ? "View details" : response || result ? "JSON" : "Parameters";
+    const display = view + JSON.stringify(rounds) + JSON.stringify(compiled);
+    if (row.display === display) continue;
+    row.display = display;
+    raw.textContent = view;
+    showTrace(trace, call);
+    cells[7].replaceChildren();
+    for (const id of evidence) {
+      const link = element("a", id);
+      link.href = "/owner/evidence/" + encodeURIComponent(id);
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      cells[7].append(link, " ");
+    }
+  }
+  for (const id of remaining) {
+    callRows.get(id).tr.remove();
+    callRows.get(id).detail.remove();
+    callRows.delete(id);
+  }
+  if (atTop) list.scrollTop = 0;
+}
+const clock = at => new Date(at).toLocaleTimeString([], { hour:"2-digit", minute:"2-digit", second:"2-digit" });
+function showTrace(trace, call) {
+  const line = (at, who, text, className) => {
+    const time = element("span", at ? clock(at) : "");
+    const label = element("span", who);
+    const body = element("span", text);
+    time.className = "t";
+    label.className = "who";
+    body.className = className;
+    trace.append(time, label, body);
+  };
+  trace.replaceChildren();
+  call.rounds.forEach((round, index) => {
+    // Round 1 is the card made from the agent's parameters. Every later card was written by the driver.
+    line(round.at, index === 0 ? "CARD" : "DRIVER", round.card + (round.rejected ? `  · ${round.rejected}` : ""), index === 0 ? "" : round.rejected ? "driver rejected" : "driver");
+    if (round.answered_at) line(round.answered_at, "UNIT", round.answer || "—", "unit");
+  });
+  if (call.compiled) line(null, "RESULT", JSON.stringify(call.compiled), "end");
+  else if (call.reason) line(null, call.state.toUpperCase(), call.reason, "end sig");
+  if (!trace.childElementCount) line(null, "", "No card shown yet.", "quiet");
+}
+let lastGoals;
+async function refreshGoals() {
+  const { goals } = await request("goals");
+  const snapshot = JSON.stringify(goals);
+  if (snapshot === lastGoals) return;
+  lastGoals = snapshot;
+  const rows = goals.map(goal => {
+    const row = element("article");
+    row.append(element("h3", goal.text), element("p", `${goal.id} · ${goal.status} · ${goal.open_jobs} open jobs`));
+    if (goal.done_when !== goal.text) row.append(element("p", "done_when · " + goal.done_when));
+    if (goal.deadline) row.append(element("p", "deadline · " + goal.deadline.slice(0, 10)));
+    if (goal.last_decision) row.append(element("p", "last decision · " + goal.last_decision.decision));
+    if (goal.agenda) { const agenda = element("p", "agenda · " + goal.agenda.text); agenda.style.whiteSpace = "pre-line"; row.append(agenda); }
+    if (goal.next_wake) row.append(element("p", "next wake · " + new Date(goal.next_wake.at).toLocaleString()));
+    for (const pass of (goal.passes || []).slice(0, 3)) {
+      const what = pass.state === "running" ? "running" : pass.state === "waiting" ? "waiting for the pass before it"
+        : pass.state === "lost" ? "no result (the runtime stopped during it)"
+        : pass.state === "failed" ? "failed" + (pass.error ? " · " + pass.error.slice(-120) : "")
+        : `${pass.calls ?? 0} calls${pass.tools && pass.tools.length ? " (" + pass.tools.join(", ") + ")" : ""} · ${Math.round((pass.ms ?? 0) / 1000)}s`;
+      row.append(element("p", `background pass · ${new Date(pass.at).toLocaleString()} · ${what} · woke for: ${pass.why}`));
+    }
+    if (goal.budget) row.append(element("p", `budget remaining · ${goal.budget.remaining} / ${goal.budget.monthly} ${goal.budget.currency}`));
+    if (goal.metric) row.append(element("p", `${goal.metric.name} · ${goal.metric.latest?.value ?? "—"} / ${goal.metric.expected_now ?? "—"} ${goal.metric.unit ?? ""}`));
+    if (goal.status === "active") {
+      const cancel = element("button", "Cancel goal");
+      cancel.addEventListener("click", async () => {
+        if (!confirm("Cancel this goal?")) return;
+        cancel.disabled = true;
+        try { await request("goals/cancel", { goal: goal.id }); await refreshGoals(); }
+        catch (error) { $("goal-message").textContent = error.message; }
+        finally { cancel.disabled = false; }
+      });
+      row.append(cancel);
+    }
+    return row;
+  });
+  $("goals").replaceChildren(...rows);
+}
+const ago = seconds => seconds === null ? "never"
+  : seconds < 90 ? `${seconds}s` : seconds < 5400 ? `${Math.round(seconds / 60)}m`
+  : `${Math.floor(seconds / 3600)}h${String(Math.floor(seconds % 3600 / 60)).padStart(2, "0")}m`;
+const unitRows = new Map();
+let units = [];
+function showUnits(list) {
+  units = list;
+  const online = list.filter(unit => unit.online).length;
+  $("phone-status").textContent = !list.length ? "None yet"
+    : list.length === 1 ? `${list[0].name} · ${list[0].online ? "Online" : "Offline"} · ${list[0].seen_s === null ? "never seen" : ago(list[0].seen_s) + " ago"}`
+    : `${list.length} · ${online} online`;
+  const remaining = new Set(unitRows.keys());
+  for (const unit of list) {
+    remaining.delete(unit.id);
+    let row = unitRows.get(unit.id);
+    if (!row) {
+      const article = element("article");
+      const line = element("p");
+      const show = element("button", "Show pairing");
+      show.type = "button";
+      show.addEventListener("click", () => void loadPair(unit.id));
+      article.append(element("h3", unit.name), line, show);
+      $("units").append(article);
+      row = { article, line };
+      unitRows.set(unit.id, row);
+    }
+    row.line.textContent = [
+      unit.online ? "online" : "offline", `seen ${unit.seen_s === null ? "never" : ago(unit.seen_s) + " ago"}`,
+      `${unit.open_jobs} open`, `ate ${ago(unit.since_eat_s)}`, `slept ${ago(unit.since_sleep_s)}`,
+      unit.mood ? `mood ${unit.mood.value}` : null
+    ].filter(Boolean).join(" · ");
+  }
+  for (const id of remaining) { unitRows.get(id).article.remove(); unitRows.delete(id); }
+}
+async function refreshStatus() {
+  try {
+    const status = await request("status");
+    $("runtime-status").textContent = "Running";
+    showUnits(status.units);
+    $("driver-status").textContent = status.driver;
+    $("brain-status").textContent = status.brain;
+    $("open-count").textContent = String(status.open_jobs);
+    for (const field of ["driver", "brain"]) $("settings").elements[field].placeholder = status[field];
+    showCalls(status.calls);
+    $("connection").textContent = "";
+  } catch {
+    $("runtime-status").textContent = "Offline";
+    $("connection").textContent = "Waiting for the local runtime…";
+  } finally {
+    setTimeout(refreshStatus, 1000);
+  }
+}
+async function pollGoals() {
+  try { await refreshGoals(); } catch {}
+  setTimeout(pollGoals, 4000);
+}
+$("new-unit").addEventListener("submit", async event => {
+  event.preventDefault();
+  const form = $("new-unit");
+  const button = form.querySelector("button");
+  button.disabled = true;
+  try {
+    const pair = await request("units", { name: form.elements.name.value.trim() });
+    form.reset();
+    await refreshStatus();
+    showPair(unitId(pair.unit), pair, `${pair.unit} added. Its phone scans this code.`);
+  } catch (error) {
+    $("pair-message").textContent = error.message;
+  } finally {
+    button.disabled = false;
+  }
+});
+for (const [id, path, message] of [["new-goal", "goals", "goal-message"], ["settings", "settings", "settings-message"]]) {
+  const form = $(id);
+  form.addEventListener("submit", async event => {
+    event.preventDefault();
+    let data = Object.fromEntries([...new FormData(form)].filter(([, value]) => value.trim()));
+    if (id === "new-goal") {
+      const { budget, currency, ...goal } = data;
+      data = budget === undefined ? goal : { ...goal, budget: { monthly: Number(budget), currency: currency?.toUpperCase() } };
+    }
+    if (!Object.keys(data).length) return;
+    const button = form.querySelector("button");
+    button.disabled = true;
+    try {
+      await request(path, data);
+      form.reset();
+      $(message).textContent = id === "settings" ? "Saved. In effect now." : "";
+      if (id === "new-goal") await refreshGoals();
+    } catch (error) {
+      $(message).textContent = error.message;
+    } finally {
+      button.disabled = false;
+    }
+  });
+}
+// The pairing shown below the unit list belongs to one unit at a time.
+let pairUnit = null;
+let pairRetry;
+const unitId = name => units.find(unit => unit.name === name)?.id ?? name;
+function showPair(id, pair, note = "") {
+  clearTimeout(pairRetry);
+  pairUnit = id;
+  const link = pair.relay_url ?? pair.urls[0];
+  $("pair").hidden = !link;
+  $("pair-unit").textContent = "Pairing · " + pair.unit;
+  $("new-pair-confirm").hidden = true;
+  $("link").value = link ?? "";
+  $("qr").hidden = !pair.qr;
+  if (pair.qr) $("qr").src = pair.qr;
+  // The relay link exists once the relay has registered this unit's channel; that takes a moment for a new unit.
+  const waiting = pair.relay_url === null && pair.relay_connected !== undefined;
+  if (waiting) pairRetry = setTimeout(() => void loadPair(id, note), 1000);
+  $("pair-message").textContent = !link ? "Pairing link unavailable. Try again shortly."
+    : [note, waiting ? "Relay link on its way; this is the same-Wi-Fi page." : "", !pair.relay_url && pair.code ? `LAN pairing code · ${pair.code}` : ""].filter(Boolean).join(" ");
+}
+async function loadPair(id, note) {
+  try { showPair(id, await request("pair?unit=" + encodeURIComponent(id)), note); } catch (error) { $("pair-message").textContent = error.message; }
+}
+$("new-pair").addEventListener("click", () => {
+  const name = units.find(unit => unit.id === pairUnit)?.name ?? "this unit";
+  $("new-pair-text").textContent = `Only ${name}'s phone stops working and has to scan the new code. Other units keep theirs.`;
+  $("new-pair-confirm").hidden = false;
+});
+$("new-pair-no").addEventListener("click", () => { $("new-pair-confirm").hidden = true; });
+$("new-pair-yes").addEventListener("click", async () => {
+  $("new-pair-confirm").hidden = true;
+  $("new-pair").disabled = true;
+  try {
+    const pair = await request("pair/new", { unit: pairUnit });
+    showPair(pairUnit, pair, pair.retired ? "New link ready. The old one no longer works." : "New link ready. The relay could not be reached, so the old link will show offline until it can.");
+  } catch (error) { $("pair-message").textContent = error.message; }
+  finally { $("new-pair").disabled = false; }
+});
+// A first visit, from install, goes straight to what to do: name the first unit, or scan the code of one never seen.
+request("status").then(status => {
+  showUnits(status.units);
+  const fresh = status.units.find(unit => unit.seen_s === null);
+  if (!status.units.length) { $("pair-message").textContent = "Name the first unit to get its pairing code."; $("new-unit").elements.name.focus(); }
+  else if (fresh) void loadPair(fresh.id);
+}, () => {});
+
+$("copy").addEventListener("click", async () => {
+  try { await navigator.clipboard.writeText($("link").value); $("pair-message").textContent = "Link copied."; }
+  catch { $("link").select(); }
+});
+void refreshStatus();
+void pollGoals();
+</script>
+</body>
+</html>

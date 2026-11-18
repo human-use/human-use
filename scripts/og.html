@@ -1,0 +1,32 @@
+<!doctype html>
+<!--
+  The link preview image, site/og.png (1200 x 630). The chip on the right is the live pinout from the site, shown in an
+  iframe, so serve site/ on port 7398 first (python -m http.server 7398 --directory site), then run from the repository:
+  chrome --headless=new --hide-scrollbars --window-size=1200,630 --blink-settings=preferredColorScheme=1 --force-prefers-reduced-motion --virtual-time-budget=4000 --screenshot=site/og.png file:///<repo>/scripts/og.html
+-->
+<html lang="en">
+<meta charset="utf-8">
+<title>og</title>
+<style>
+:root{--paper:#F3F2EE;--ink:#121311;--ink2:#62645E;--rule:#D8D6CF;--signal:#E4460A;
+  --sans:-apple-system,BlinkMacSystemFont,"Helvetica Neue","Segoe UI",sans-serif;--mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+html,body{margin:0;width:1200px;height:630px;overflow:hidden;background:var(--paper);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased}
+.sheet{position:absolute;inset:40px 48px;border-top:2px solid var(--ink)}
+.top{display:flex;justify-content:space-between;align-items:center;height:44px;border-bottom:1px solid var(--rule);font:600 16px var(--sans)}
+.top img{width:22px;height:22px;vertical-align:-5px;margin-right:9px}
+.top span{font:14px var(--mono);color:var(--ink2)}
+h1{position:absolute;left:0;top:96px;width:560px;margin:0;font:600 66px/1.02 var(--sans);letter-spacing:-.03em}
+p{position:absolute;left:0;top:252px;width:500px;margin:0;font:22px/1.42 var(--sans);color:var(--ink2)}
+.cmd{position:absolute;left:0;bottom:0;display:flex;align-items:center;gap:18px;font:17px var(--mono)}
+.cmd code{border:1px solid var(--ink);padding:11px 15px;background:#FBFAF7}
+.cmd span{color:var(--ink2);font-size:14px}
+.chip{position:absolute;right:0;top:64px;width:468px;height:486px;overflow:hidden}
+.chip iframe{position:absolute;border:0;width:1280px;height:1100px;left:-24px;top:-221px;transform-origin:24px 221px;transform:scale(.73)}
+</style>
+<div class="sheet">
+  <div class="top"><div><img src="../site/icon.svg" alt="">Human Use</div><span>humanuse.dev</span></div>
+  <h1>A device driver for a person.</h1>
+  <p>An MCP server. The agent calls a tool, a card prints on a person's phone, and the agent gets JSON back.</p>
+  <div class="cmd"><code>npx -y human-use install</code><span>MIT · Claude Code, Codex, any MCP host</span></div>
+  <div class="chip"><iframe src="http://localhost:7398/index.html#catalog" scrolling="no" tabindex="-1"></iframe></div>
+</div>

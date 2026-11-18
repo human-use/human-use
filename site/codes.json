@@ -1,0 +1,226 @@
+{
+  "registry": "HRT",
+  "rev": "0.1.0",
+  "updated": "2026-11-17",
+  "format": "HRT-NNNN NAME detail",
+  "arrives": {
+    "error": "The call fails. MCP result: {\"isError\": true, \"content\": [{\"type\": \"text\", \"text\": \"HRT-4020 BUDGET_EXCEEDED remaining 14.5 USD\"}]}",
+    "result": "The job settles, and the code is a field of its result: {\"done\": false, \"code\": \"HRT-4009\"}",
+    "escalation": "The job ends as escalated, with the code as its reason. The goal's next pass is woken.",
+    "card": "Printed on the unit's phone. The agent's call is unaffected.",
+    "http": "HTTP 500 from the local runtime, body {\"error\": \"HRT-5000\", \"message\": \"...\"}"
+  },
+  "ranges": [
+    {
+      "from": 4000,
+      "to": 4019,
+      "name": "Call",
+      "about": "The call itself: tool name, arguments, ids, state."
+    },
+    {
+      "from": 4020,
+      "to": 4029,
+      "name": "Money",
+      "about": "The goal's monthly budget."
+    },
+    {
+      "from": 4030,
+      "to": 4039,
+      "name": "Authority",
+      "about": "Who may do what: lead, agent, unit."
+    },
+    {
+      "from": 5000,
+      "to": 5029,
+      "name": "Runtime",
+      "about": "The runtime on your computer failed."
+    },
+    {
+      "from": 5030,
+      "to": 5039,
+      "name": "Driver",
+      "about": "The driver model is missing or could not do its part."
+    }
+  ],
+  "codes": [
+    {
+      "code": "HRT-4000",
+      "names": [
+        "NO_SUCH_TOOL",
+        "NOT_A_HUMAN_TOOL"
+      ],
+      "arrives": "error",
+      "when": "The tool name is not in the catalog (`NO_SUCH_TOOL`), or `at` or `every` was given a tool that prints no card (`NOT_A_HUMAN_TOOL`).",
+      "agent": "Pick a tool from `tools/list`. `at` and `every` take card tools only.",
+      "example": "HRT-4000 NOT_A_HUMAN_TOOL ps",
+      "since": "0.1.0"
+    },
+    {
+      "code": "HRT-4001",
+      "names": [
+        "BAD_ARGS"
+      ],
+      "arrives": "error",
+      "when": "The arguments fail the tool's schema or one of its limits. Schema failures name the field; limit checks state the rule.",
+      "agent": "Fix the named field and call again.",
+      "example": "HRT-4001 every must be at least 1m",
+      "limits": [
+        [
+          "record.seconds",
+          "600 or less"
+        ],
+        [
+          "rest.minutes, recharge.minutes",
+          "240 or less"
+        ],
+        [
+          "choose.options",
+          "2 to 6"
+        ],
+        [
+          "decode.options",
+          "2 or more, if given"
+        ],
+        [
+          "checklist.steps",
+          "1 or more"
+        ],
+        [
+          "every.every",
+          "1m or more"
+        ],
+        [
+          "history.limit",
+          "200 or less"
+        ],
+        [
+          "goal_note.agenda",
+          "1500 characters or less"
+        ],
+        [
+          "spend.max, spend.currency",
+          "both required; currency is 3 letters"
+        ],
+        [
+          "cancel",
+          "job or schedule required"
+        ],
+        [
+          "unit",
+          "required on card tools when more than one unit is paired"
+        ]
+      ],
+      "since": "0.1.0"
+    },
+    {
+      "code": "HRT-4004",
+      "names": [
+        "NO_SUCH_JOB",
+        "NO_SUCH_GOAL",
+        "NO_SUCH_SCHEDULE",
+        "NO_SUCH_UNIT"
+      ],
+      "arrives": "error",
+      "when": "The id was never issued on this runtime, or no unit has that name or id (`NO_SUCH_UNIT`).",
+      "agent": "Use ids from earlier returns. `ps` lists what is pending and active, and the units by name.",
+      "example": "HRT-4004 NO_SUCH_GOAL g_000000",
+      "since": "0.1.0"
+    },
+    {
+      "code": "HRT-4009",
+      "names": [
+        "JOB_NOT_PENDING",
+        "JOB_NOT_OPEN",
+        "GOAL_NOT_ACTIVE"
+      ],
+      "arrives": "error, result",
+      "when": "As an error: the job or goal has moved on (already settled, closed or cancelled). In a result: the unit gave a reason it could not do the task, the driver did not believe it, and checking did not settle it.",
+      "agent": "Error: read the current state with `ps` or `goal_get`. Result: the task is not done and the reason is doubtful. Check it another way, send the task again, or give up on it.",
+      "example": "{\"done\": false, \"blocker\": \"no one home\", \"code\": \"HRT-4009\", \"evidence_level\": 6, \"unverified\": true}",
+      "since": "0.1.0"
+    },
+    {
+      "code": "HRT-4020",
+      "names": [
+        "BUDGET_EXCEEDED"
+      ],
+      "arrives": "error",
+      "when": "`spend`'s `max` is more than what is left of the goal's budget this month.",
+      "agent": "Lower `max`, wait for next month, or ask the lead for a bigger budget.",
+      "example": "HRT-4020 BUDGET_EXCEEDED remaining 14.5 USD",
+      "since": "0.1.0"
+    },
+    {
+      "code": "HRT-4021",
+      "names": [
+        "CURRENCY_MISMATCH"
+      ],
+      "arrives": "error",
+      "when": "`spend` names a currency other than the budget's.",
+      "agent": "Convert and call again in the budget's currency.",
+      "example": "HRT-4021 CURRENCY_MISMATCH budget is USD",
+      "since": "0.1.0"
+    },
+    {
+      "code": "HRT-4030",
+      "names": [
+        "LEAD_ONLY"
+      ],
+      "arrives": "error",
+      "when": "A background pass tried to cancel a goal. Only the lead cancels a goal.",
+      "agent": "Record the reason with `goal_note`. The lead reads it and decides.",
+      "example": "HRT-4030 LEAD_ONLY a goal is cancelled by its lead. Record the reason with goal_note.",
+      "since": "0.1.0"
+    },
+    {
+      "code": "HRT-4031",
+      "names": [
+        "PRIVILEGE_ESCALATION"
+      ],
+      "arrives": "card",
+      "when": "The unit's answer tried to give the system orders: ignore a rule, set a value, change or cancel the goal, claim someone in charge approved, or pass itself off as a system message.",
+      "agent": "Nothing to do. The answer is discarded, the card stays open, and the attempt counts as a round.",
+      "example": "[HRT-4031 PRIVILEGE_ESCALATION] Input discarded. Task unchanged.",
+      "since": "0.1.0"
+    },
+    {
+      "code": "HRT-5000",
+      "names": [],
+      "arrives": "http",
+      "when": "Something inside the local runtime threw.",
+      "agent": "Call again. If it repeats, the lead reads the runtime's log.",
+      "example": "{\"error\": \"HRT-5000\", \"message\": \"...\"}",
+      "since": "0.1.0"
+    },
+    {
+      "code": "HRT-5030",
+      "names": [
+        "VERIFIER_UNAVAILABLE"
+      ],
+      "arrives": "error",
+      "when": "`goal_close` with `done`, and no driver is set. A goal closes as done only after a driver checks the evidence against `done_when`.",
+      "agent": "Leave the goal open and tell the lead a driver is needed.",
+      "example": "HRT-5030 VERIFIER_UNAVAILABLE a goal closes as done only after its evidence is checked against done_when",
+      "since": "0.1.0"
+    },
+    {
+      "code": "HRT-5031",
+      "names": [
+        "COMPILE_FAILED"
+      ],
+      "arrives": "escalation",
+      "when": "The driver could not turn the unit's answer into the fields the agent asked for: it returned no usable action or hit its notebook lookup limit. Also raised when a card that needs the driver is sent with no driver set.",
+      "agent": "Read the job, then send a simpler task or ask for fewer fields.",
+      "example": "{\"type\": \"escalated\", \"job\": \"j_…\", \"tool\": \"observe\", \"reason\": \"HRT-5031 COMPILE_FAILED\"}",
+      "since": "0.1.0"
+    }
+  ],
+  "log": [
+    {
+      "rev": "0.1.0",
+      "date": "2026-11-17",
+      "note": "First registry: 11 codes in 5 ranges. Card tools name a unit when more than one is paired."
+
+    }
+  ]
+}

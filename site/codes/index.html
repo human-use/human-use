@@ -1,0 +1,461 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#F3F2EE">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#121311">
+<title>HRT codes · Human Use</title>
+<meta name="description" content="The registry of HRT error codes Human Use returns to agents: what each means, how it arrives, what the agent does next. Machine copy at /codes.json.">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="alternate" type="application/json" href="/codes.json">
+<style>
+:root{
+  color-scheme:light dark;
+  --paper:#F3F2EE;--surface:#FBFAF7;--ink:#121311;--ink2:#62645E;--rule:#D8D6CF;--signal:#E4460A;--on-signal:#fff;
+  --sans:-apple-system,BlinkMacSystemFont,"Helvetica Neue","Segoe UI","PingFang SC","Noto Sans SC","Microsoft YaHei",sans-serif;
+  --mono:ui-monospace,"SF Mono","Roboto Mono",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root{--paper:#121311;--surface:#1A1B19;--ink:#ECEBE6;--ink2:#9A9C95;--rule:#30322E;--signal:#FF6A2B;--on-signal:#121311}
+}
+*{box-sizing:border-box}
+html{scroll-padding-top:16px}
+body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.5 var(--sans);-webkit-font-smoothing:antialiased}
+a{color:var(--ink);text-underline-offset:3px}
+code,.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+pre{font-family:var(--mono)}
+.lb{font:600 11px/1.2 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--ink2)}
+.wrap{max-width:1380px;margin:0 auto;padding:0 24px}
+a:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+
+.top{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:46px;border-bottom:1px solid var(--ink)}
+.brand{display:flex;gap:10px;align-items:center;font:600 13px/1 var(--sans);text-decoration:none;white-space:nowrap}
+.brand img{width:18px;height:18px;display:block}
+.nav{display:flex;gap:18px;font:500 12px/1 var(--mono);flex-wrap:wrap}
+.nav a{text-decoration:none;color:var(--ink2)}
+.nav a:hover,.nav a[aria-current]{color:var(--ink)}
+
+.hero{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:24px;align-items:end;padding:24px 0 20px}
+.hero h1{font:600 clamp(34px,4.6vw,60px)/1 var(--sans);letter-spacing:-.03em;margin:0}
+.hero p{margin:14px 0 0;color:var(--ink2);font-size:17px;max-width:62ch}
+.hero p code{color:var(--ink);font-size:15px}
+.json{display:flex;align-items:center;gap:14px;border:1px solid var(--ink);background:var(--surface);padding:14px 16px;font:500 14px/1 var(--mono);text-decoration:none;white-space:nowrap}
+.json:after{content:"→"}
+.json:hover{background:var(--ink);color:var(--paper)}
+.tb{margin:0;display:grid;grid-template-columns:repeat(6,auto);border:1px solid var(--ink);background:var(--surface)}
+.tb>div{padding:8px 12px;min-width:0}
+.tb>div+div{border-left:1px solid var(--rule)}
+.tb dt{font:600 10px/1.2 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--ink2)}
+.tb dd{margin:4px 0 0;font:500 12px/1.35 var(--mono)}
+
+.blk{padding:72px 0 0}
+.blk h2{font:600 30px/1.1 var(--sans);letter-spacing:-.02em;margin:6px 0 10px}
+.blk h2 .no{display:inline-block;min-width:1.7em;font:500 .8em/1 var(--mono);color:var(--ink2);vertical-align:.08em}
+.lede{color:var(--ink2);max-width:66ch;margin:0 0 24px;font-size:16px}
+.lede code{color:var(--ink);font-size:14px}
+
+/* map: every number the registry can hand out */
+.map{border:1px solid var(--ink);background:var(--surface);margin-top:28px}
+.strip{display:grid;grid-template-columns:132px minmax(0,1fr);column-gap:0}
+.strip+.strip{border-top:1px solid var(--ink)}
+.sh{grid-row:1/3;display:flex;flex-direction:column;gap:4px;padding:16px;border-right:1px solid var(--ink)}
+.sh b{font:600 34px/1 var(--mono);letter-spacing:-.04em}
+.sh span{font:500 11px/1.2 var(--mono);color:var(--ink2)}
+.slots{display:grid;grid-template-columns:repeat(40,minmax(0,1fr));gap:3px;padding:16px 16px 10px}
+.sl{display:flex;align-items:center;justify-content:center;aspect-ratio:3/4;border:1px solid var(--rule);background:var(--paper);text-decoration:none}
+.sl.edge{position:relative}
+.sl.edge:before{content:"";position:absolute;left:-3px;top:-7px;bottom:-7px;width:1px;background:var(--ink)}
+.sl.on{border-color:var(--ink);background:var(--ink);color:var(--paper)}
+.sl.on span{font:600 10.5px/1 var(--mono)}
+.sl.s{border-color:var(--signal);background:var(--signal);color:var(--on-signal)}
+.sl.on:hover,.sl.on.hl{outline:2px solid var(--signal);outline-offset:1px}
+.bands{display:grid;grid-template-columns:repeat(40,minmax(0,1fr));gap:3px;padding:0 16px 16px}
+.band{min-width:0;border-top:1px solid var(--ink);padding:7px 8px 0 0}
+.band b{display:block;font:600 13px/1.2 var(--sans)}
+.band span{display:block;font:500 10.5px/1.4 var(--mono);color:var(--ink2);white-space:nowrap}
+.band p{margin:4px 0 0;font-size:12.5px;line-height:1.35;color:var(--ink2)}
+.mapk{display:flex;gap:18px;flex-wrap:wrap;margin:10px 0 0;font:500 11px/1 var(--mono);color:var(--ink2)}
+.mapk i{display:inline-block;width:9px;height:12px;border:1px solid var(--rule);background:var(--paper);vertical-align:-2px;margin-right:6px}
+.mapk i.on{background:var(--ink);border-color:var(--ink)}
+.mapk i.s{background:var(--signal);border-color:var(--signal)}
+
+/* arrival */
+.dt{width:100%;border-collapse:collapse;font-size:14px;line-height:1.4;border:1px solid var(--ink);background:var(--surface)}
+.dt th{font:600 10.5px/1.2 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--ink2);text-align:left;padding:10px 12px;border-bottom:1px solid var(--ink)}
+.dt td{padding:10px 12px;border-bottom:1px solid var(--rule);vertical-align:top}
+.dt tr:last-child td{border-bottom:0}
+.dt td:first-child{white-space:nowrap}
+.dt code{font-size:12.5px;overflow-wrap:anywhere}
+em{font:600 10.5px/1 var(--mono);font-style:normal;letter-spacing:.02em;border:1px solid var(--ink);padding:3px 6px;white-space:nowrap}
+
+/* entries */
+.rh{display:flex;align-items:baseline;gap:14px;margin:36px 0 0;padding:0 0 8px;border-bottom:1px solid var(--ink);font:600 13px/1.2 var(--sans);letter-spacing:.08em;text-transform:uppercase}
+.rh span{font:500 12px/1 var(--mono);letter-spacing:0;color:var(--ink2)}
+.code{display:grid;grid-template-columns:300px minmax(0,1fr);border-bottom:1px solid var(--rule);transition:background .4s}
+.code:target,.code.hl{background:var(--surface)}
+.cid{display:flex;flex-direction:column;align-items:flex-start;gap:6px;padding:18px 18px 18px 0}
+.cid a{font:600 46px/.9 var(--mono);letter-spacing:-.04em;text-decoration:none;margin-bottom:6px}
+.cid a small{font-size:.38em;letter-spacing:0;color:var(--ink2);vertical-align:.95em;margin-right:2px}
+.cid code{font:600 12.5px/1.3 var(--mono)}
+.cid code.dim{color:var(--ink2);font-weight:500}
+.cid .arr{display:flex;gap:5px;margin-top:6px}
+.code.s .cid a,.code.s .cid code{color:var(--signal)}
+.code.s em{border-color:var(--signal);color:var(--signal)}
+.code dl{margin:0;display:grid;grid-template-columns:96px minmax(0,1fr);align-content:start;padding:18px 0}
+.code dt{font:600 10.5px/1.2 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--ink2);padding:4px 0 10px}
+.code dd{margin:0;padding:0 0 10px;font-size:14.5px;line-height:1.45;max-width:78ch}
+.code dd code{font-size:13px}
+.code pre{margin:0;padding:9px 12px;border:1px solid var(--rule);background:var(--surface);font-size:12.5px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere}
+.code.s pre{border-color:var(--signal);color:var(--signal)}
+.lim{border-collapse:collapse;font-size:13px}
+.lim td{padding:4px 18px 4px 0;border-bottom:1px solid var(--rule);vertical-align:top}
+.lim tr:last-child td{border-bottom:0}
+
+/* how a code gets a number */
+.steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border:1px solid var(--ink);background:var(--surface);counter-reset:st}
+.step{position:relative;padding:18px 20px 20px;min-width:0}
+.step+.step{border-left:1px solid var(--ink)}
+.step+.step:before{content:"";position:absolute;left:-1px;top:50%;border-style:solid;border-width:7px 0 7px 10px;border-color:transparent transparent transparent var(--ink);transform:translateY(-50%)}
+.step .lb{display:flex;justify-content:space-between;gap:10px}
+.step .lb b{font-weight:600;color:var(--ink2)}
+.step .lb b.now{color:var(--signal)}
+.step h3{margin:10px 0 6px;font:600 19px/1.25 var(--sans);letter-spacing:-.01em}
+.step p{margin:0;color:var(--ink2);font-size:14px;line-height:1.45}
+.step p code{color:var(--ink);font-size:12.5px}
+.rule{margin:12px 0 0;padding:12px 14px;border:1px solid var(--ink);font-size:14px}
+
+.foot{margin-top:84px;border-top:1px solid var(--ink);padding:16px 0 28px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;color:var(--ink2);font:500 12px/1.5 var(--mono)}
+.foot a{color:var(--ink2)}
+
+@media (max-width:900px){
+  .wrap{padding:0 16px}
+  .hero{grid-template-columns:1fr}
+  .json{justify-self:start}
+  .tb{grid-template-columns:1fr 1fr}
+  .tb>div:nth-child(odd){border-left:0}
+  .tb>div:nth-child(n+3){border-top:1px solid var(--rule)}
+  .strip{grid-template-columns:1fr}
+  .sh{grid-row:auto;flex-direction:row;align-items:baseline;gap:12px;border-right:0;border-bottom:1px solid var(--rule);padding:12px 14px}
+  .sh b{font-size:24px}
+  .slots,.bands{grid-template-columns:repeat(20,minmax(0,1fr));padding-left:14px;padding-right:14px;gap:2px}
+  .band{grid-column:auto/span 20!important}
+  .band+.band{margin-top:6px}
+  .sl.on span{font-size:8.5px}
+  .sl.edge:before{display:none}
+  .code{grid-template-columns:1fr}
+  .cid{padding:16px 0 0}
+  .cid a{font-size:38px}
+  .code dl{grid-template-columns:1fr;padding-top:12px}
+  .code dt{padding:2px 0 4px}
+  .steps{grid-template-columns:1fr}
+  .step+.step{border-left:0;border-top:1px solid var(--ink)}
+  .step+.step:before{left:50%;top:-1px;border-width:10px 7px 0 7px;border-color:var(--ink) transparent transparent transparent;transform:translateX(-50%)}
+  .dt,.dt tbody{display:block}
+  .dt thead{display:none}
+  .dt tr{display:grid;grid-template-columns:auto minmax(0,1fr);border-bottom:1px solid var(--rule)}
+  .dt tr:last-child{border-bottom:0}
+  .dt td{border-bottom:0}
+  .dt td:nth-child(3){grid-column:1/-1;padding-top:0}
+}
+@media (prefers-reduced-motion:reduce){.code{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="/"><img src="/icon.svg" alt="">Human Use</a>
+    <nav class="nav"><a href="/install.md">install.md</a><a href="/codes/" aria-current="page">codes</a><a href="/llms.txt">llms.txt</a><a href="https://github.com/human-use/human-use">GitHub</a><a href="https://www.npmjs.com/package/human-use">npm</a></nav>
+  </header>
+
+  <section class="hero">
+    <div>
+      <h1>HRT codes</h1>
+      <p>When a call to a person fails, the agent gets a code: four digits, a name, a detail. This page is the registry. It is meant to grow: a new code is added when runtimes on separate units run into the same new case.</p>
+    </div>
+    <a class="json" href="/codes.json">codes.json</a>
+  </section>
+  <dl class="tb">
+    <div><dt>Registry</dt><dd>HRT</dd></div>
+    <div><dt>Rev</dt><dd data-n="rev">0.1.0</dd></div>
+    <div><dt>Codes</dt><dd data-n="codes">11</dd></div>
+    <div><dt>Format</dt><dd>HRT-NNNN NAME detail</dd></div>
+    <div><dt>Updated</dt><dd data-n="updated">2026-11-17</dd></div>
+    <div><dt>Machine copy</dt><dd><a href="/codes.json">/codes.json</a></dd></div>
+  </dl>
+
+  <section class="blk" id="space">
+    <h2><span class="no">1</span>The number space</h2>
+    <p class="lede">Each square is a number the registry can hand out. 4xxx means the call was wrong or not allowed; 5xxx means the runtime or its driver failed. Filled squares are taken; the rest are free.</p>
+<!-- map:begin -->
+<div class="map" id="map" aria-label="Code space: 11 of 80 numbers assigned">
+  <div class="strip">
+    <div class="sh"><b>4000</b><span>4000–4039</span></div>
+    <div class="slots">
+      <a class="sl on" href="#HRT-4000" title="HRT-4000 NO_SUCH_TOOL / NOT_A_HUMAN_TOOL"><span>00</span></a>
+      <a class="sl on" href="#HRT-4001" title="HRT-4001 BAD_ARGS"><span>01</span></a>
+      <i class="sl" title="HRT-4002 free"></i>
+      <i class="sl" title="HRT-4003 free"></i>
+      <a class="sl on" href="#HRT-4004" title="HRT-4004 NO_SUCH_JOB / NO_SUCH_GOAL / NO_SUCH_SCHEDULE / NO_SUCH_UNIT"><span>04</span></a>
+      <i class="sl" title="HRT-4005 free"></i>
+      <i class="sl" title="HRT-4006 free"></i>
+      <i class="sl" title="HRT-4007 free"></i>
+      <i class="sl" title="HRT-4008 free"></i>
+      <a class="sl on" href="#HRT-4009" title="HRT-4009 JOB_NOT_PENDING / JOB_NOT_OPEN / GOAL_NOT_ACTIVE"><span>09</span></a>
+      <i class="sl" title="HRT-4010 free"></i>
+      <i class="sl" title="HRT-4011 free"></i>
+      <i class="sl" title="HRT-4012 free"></i>
+      <i class="sl" title="HRT-4013 free"></i>
+      <i class="sl" title="HRT-4014 free"></i>
+      <i class="sl" title="HRT-4015 free"></i>
+      <i class="sl" title="HRT-4016 free"></i>
+      <i class="sl" title="HRT-4017 free"></i>
+      <i class="sl" title="HRT-4018 free"></i>
+      <i class="sl" title="HRT-4019 free"></i>
+      <a class="sl on edge" href="#HRT-4020" title="HRT-4020 BUDGET_EXCEEDED"><span>20</span></a>
+      <a class="sl on" href="#HRT-4021" title="HRT-4021 CURRENCY_MISMATCH"><span>21</span></a>
+      <i class="sl" title="HRT-4022 free"></i>
+      <i class="sl" title="HRT-4023 free"></i>
+      <i class="sl" title="HRT-4024 free"></i>
+      <i class="sl" title="HRT-4025 free"></i>
+      <i class="sl" title="HRT-4026 free"></i>
+      <i class="sl" title="HRT-4027 free"></i>
+      <i class="sl" title="HRT-4028 free"></i>
+      <i class="sl" title="HRT-4029 free"></i>
+      <a class="sl on edge" href="#HRT-4030" title="HRT-4030 LEAD_ONLY"><span>30</span></a>
+      <a class="sl on s" href="#HRT-4031" title="HRT-4031 PRIVILEGE_ESCALATION"><span>31</span></a>
+      <i class="sl" title="HRT-4032 free"></i>
+      <i class="sl" title="HRT-4033 free"></i>
+      <i class="sl" title="HRT-4034 free"></i>
+      <i class="sl" title="HRT-4035 free"></i>
+      <i class="sl" title="HRT-4036 free"></i>
+      <i class="sl" title="HRT-4037 free"></i>
+      <i class="sl" title="HRT-4038 free"></i>
+      <i class="sl" title="HRT-4039 free"></i>
+    </div>
+    <div class="bands">
+      <div class="band" style="grid-column:1 / 21"><b>Call</b><span>4000–4019 · 4 of 20</span><p>The call itself: tool name, arguments, ids, state.</p></div>
+      <div class="band" style="grid-column:21 / 31"><b>Money</b><span>4020–4029 · 2 of 10</span><p>The goal's monthly budget.</p></div>
+      <div class="band" style="grid-column:31 / 41"><b>Authority</b><span>4030–4039 · 2 of 10</span><p>Who may do what: lead, agent, unit.</p></div>
+    </div>
+  </div>
+  <div class="strip">
+    <div class="sh"><b>5000</b><span>5000–5039</span></div>
+    <div class="slots">
+      <a class="sl on" href="#HRT-5000" title="HRT-5000 internal"><span>00</span></a>
+      <i class="sl" title="HRT-5001 free"></i>
+      <i class="sl" title="HRT-5002 free"></i>
+      <i class="sl" title="HRT-5003 free"></i>
+      <i class="sl" title="HRT-5004 free"></i>
+      <i class="sl" title="HRT-5005 free"></i>
+      <i class="sl" title="HRT-5006 free"></i>
+      <i class="sl" title="HRT-5007 free"></i>
+      <i class="sl" title="HRT-5008 free"></i>
+      <i class="sl" title="HRT-5009 free"></i>
+      <i class="sl" title="HRT-5010 free"></i>
+      <i class="sl" title="HRT-5011 free"></i>
+      <i class="sl" title="HRT-5012 free"></i>
+      <i class="sl" title="HRT-5013 free"></i>
+      <i class="sl" title="HRT-5014 free"></i>
+      <i class="sl" title="HRT-5015 free"></i>
+      <i class="sl" title="HRT-5016 free"></i>
+      <i class="sl" title="HRT-5017 free"></i>
+      <i class="sl" title="HRT-5018 free"></i>
+      <i class="sl" title="HRT-5019 free"></i>
+      <i class="sl" title="HRT-5020 free"></i>
+      <i class="sl" title="HRT-5021 free"></i>
+      <i class="sl" title="HRT-5022 free"></i>
+      <i class="sl" title="HRT-5023 free"></i>
+      <i class="sl" title="HRT-5024 free"></i>
+      <i class="sl" title="HRT-5025 free"></i>
+      <i class="sl" title="HRT-5026 free"></i>
+      <i class="sl" title="HRT-5027 free"></i>
+      <i class="sl" title="HRT-5028 free"></i>
+      <i class="sl" title="HRT-5029 free"></i>
+      <a class="sl on edge" href="#HRT-5030" title="HRT-5030 VERIFIER_UNAVAILABLE"><span>30</span></a>
+      <a class="sl on" href="#HRT-5031" title="HRT-5031 COMPILE_FAILED"><span>31</span></a>
+      <i class="sl" title="HRT-5032 free"></i>
+      <i class="sl" title="HRT-5033 free"></i>
+      <i class="sl" title="HRT-5034 free"></i>
+      <i class="sl" title="HRT-5035 free"></i>
+      <i class="sl" title="HRT-5036 free"></i>
+      <i class="sl" title="HRT-5037 free"></i>
+      <i class="sl" title="HRT-5038 free"></i>
+      <i class="sl" title="HRT-5039 free"></i>
+    </div>
+    <div class="bands">
+      <div class="band" style="grid-column:1 / 31"><b>Runtime</b><span>5000–5029 · 1 of 30</span><p>The runtime on your computer failed.</p></div>
+      <div class="band" style="grid-column:31 / 41"><b>Driver</b><span>5030–5039 · 2 of 10</span><p>The driver model is missing or could not do its part.</p></div>
+    </div>
+  </div>
+</div>
+<!-- map:end -->
+    <p class="mapk"><span><i class="on"></i>taken</span><span><i class="s"></i>shown to the unit, not the agent</span><span><i></i>free</span></p>
+  </section>
+
+  <section class="blk" id="codes">
+    <h2><span class="no">2</span>The codes</h2>
+    <p class="lede">What each one means, what the agent should do next, and what it looks like when it arrives.</p>
+<!-- codes:begin -->
+<div class="codes">
+  <h3 class="rh"><span>4000–4019</span>Call</h3>
+  <article class="code" id="HRT-4000">
+    <div class="cid"><a href="#HRT-4000"><small>HRT-</small>4000</a><code>NO_SUCH_TOOL</code><code>NOT_A_HUMAN_TOOL</code><span class="arr"><em>error</em></span></div>
+    <dl>
+      <dt>When</dt><dd>The tool name is not in the catalog (<code>NO_SUCH_TOOL</code>), or <code>at</code> or <code>every</code> was given a tool that prints no card (<code>NOT_A_HUMAN_TOOL</code>).</dd>
+      <dt>Agent</dt><dd>Pick a tool from <code>tools/list</code>. <code>at</code> and <code>every</code> take card tools only.</dd>
+      <dt>Looks like</dt><dd><pre>HRT-4000 NOT_A_HUMAN_TOOL ps</pre></dd>
+      <dt>Since</dt><dd class="mono">0.1.0</dd>
+    </dl>
+  </article>
+  <article class="code" id="HRT-4001">
+    <div class="cid"><a href="#HRT-4001"><small>HRT-</small>4001</a><code>BAD_ARGS</code><span class="arr"><em>error</em></span></div>
+    <dl>
+      <dt>When</dt><dd>The arguments fail the tool's schema or one of its limits. Schema failures name the field; limit checks state the rule.</dd>
+      <dt>Agent</dt><dd>Fix the named field and call again.</dd>
+      <dt>Looks like</dt><dd><pre>HRT-4001 every must be at least 1m</pre></dd>
+      <dt>Limits</dt><dd><table class="lim"><tbody><tr><td><code>record.seconds</code></td><td>600 or less</td></tr><tr><td><code>rest.minutes, recharge.minutes</code></td><td>240 or less</td></tr><tr><td><code>choose.options</code></td><td>2 to 6</td></tr><tr><td><code>decode.options</code></td><td>2 or more, if given</td></tr><tr><td><code>checklist.steps</code></td><td>1 or more</td></tr><tr><td><code>every.every</code></td><td>1m or more</td></tr><tr><td><code>history.limit</code></td><td>200 or less</td></tr><tr><td><code>goal_note.agenda</code></td><td>1500 characters or less</td></tr><tr><td><code>spend.max, spend.currency</code></td><td>both required; currency is 3 letters</td></tr><tr><td><code>cancel</code></td><td>job or schedule required</td></tr><tr><td><code>unit</code></td><td>required on card tools when more than one unit is paired</td></tr></tbody></table></dd>
+      <dt>Since</dt><dd class="mono">0.1.0</dd>
+    </dl>
+  </article>
+  <article class="code" id="HRT-4004">
+    <div class="cid"><a href="#HRT-4004"><small>HRT-</small>4004</a><code>NO_SUCH_JOB</code><code>NO_SUCH_GOAL</code><code>NO_SUCH_SCHEDULE</code><code>NO_SUCH_UNIT</code><span class="arr"><em>error</em></span></div>
+    <dl>
+      <dt>When</dt><dd>The id was never issued on this runtime, or no unit has that name or id (<code>NO_SUCH_UNIT</code>).</dd>
+      <dt>Agent</dt><dd>Use ids from earlier returns. <code>ps</code> lists what is pending and active, and the units by name.</dd>
+      <dt>Looks like</dt><dd><pre>HRT-4004 NO_SUCH_GOAL g_000000</pre></dd>
+      <dt>Since</dt><dd class="mono">0.1.0</dd>
+    </dl>
+  </article>
+  <article class="code" id="HRT-4009">
+    <div class="cid"><a href="#HRT-4009"><small>HRT-</small>4009</a><code>JOB_NOT_PENDING</code><code>JOB_NOT_OPEN</code><code>GOAL_NOT_ACTIVE</code><span class="arr"><em>error</em><em>result</em></span></div>
+    <dl>
+      <dt>When</dt><dd>As an error: the job or goal has moved on (already settled, closed or cancelled). In a result: the unit gave a reason it could not do the task, the driver did not believe it, and checking did not settle it.</dd>
+      <dt>Agent</dt><dd>Error: read the current state with <code>ps</code> or <code>goal_get</code>. Result: the task is not done and the reason is doubtful. Check it another way, send the task again, or give up on it.</dd>
+      <dt>Looks like</dt><dd><pre>{&quot;done&quot;: false, &quot;blocker&quot;: &quot;no one home&quot;, &quot;code&quot;: &quot;HRT-4009&quot;, &quot;evidence_level&quot;: 6, &quot;unverified&quot;: true}</pre></dd>
+      <dt>Since</dt><dd class="mono">0.1.0</dd>
+    </dl>
+  </article>
+  <h3 class="rh"><span>4020–4029</span>Money</h3>
+  <article class="code" id="HRT-4020">
+    <div class="cid"><a href="#HRT-4020"><small>HRT-</small>4020</a><code>BUDGET_EXCEEDED</code><span class="arr"><em>error</em></span></div>
+    <dl>
+      <dt>When</dt><dd><code>spend</code>'s <code>max</code> is more than what is left of the goal's budget this month.</dd>
+      <dt>Agent</dt><dd>Lower <code>max</code>, wait for next month, or ask the lead for a bigger budget.</dd>
+      <dt>Looks like</dt><dd><pre>HRT-4020 BUDGET_EXCEEDED remaining 14.5 USD</pre></dd>
+      <dt>Since</dt><dd class="mono">0.1.0</dd>
+    </dl>
+  </article>
+  <article class="code" id="HRT-4021">
+    <div class="cid"><a href="#HRT-4021"><small>HRT-</small>4021</a><code>CURRENCY_MISMATCH</code><span class="arr"><em>error</em></span></div>
+    <dl>
+      <dt>When</dt><dd><code>spend</code> names a currency other than the budget's.</dd>
+      <dt>Agent</dt><dd>Convert and call again in the budget's currency.</dd>
+      <dt>Looks like</dt><dd><pre>HRT-4021 CURRENCY_MISMATCH budget is USD</pre></dd>
+      <dt>Since</dt><dd class="mono">0.1.0</dd>
+    </dl>
+  </article>
+  <h3 class="rh"><span>4030–4039</span>Authority</h3>
+  <article class="code" id="HRT-4030">
+    <div class="cid"><a href="#HRT-4030"><small>HRT-</small>4030</a><code>LEAD_ONLY</code><span class="arr"><em>error</em></span></div>
+    <dl>
+      <dt>When</dt><dd>A background pass tried to cancel a goal. Only the lead cancels a goal.</dd>
+      <dt>Agent</dt><dd>Record the reason with <code>goal_note</code>. The lead reads it and decides.</dd>
+      <dt>Looks like</dt><dd><pre>HRT-4030 LEAD_ONLY a goal is cancelled by its lead. Record the reason with goal_note.</pre></dd>
+      <dt>Since</dt><dd class="mono">0.1.0</dd>
+    </dl>
+  </article>
+  <article class="code s" id="HRT-4031">
+    <div class="cid"><a href="#HRT-4031"><small>HRT-</small>4031</a><code>PRIVILEGE_ESCALATION</code><span class="arr"><em>card</em></span></div>
+    <dl>
+      <dt>When</dt><dd>The unit's answer tried to give the system orders: ignore a rule, set a value, change or cancel the goal, claim someone in charge approved, or pass itself off as a system message.</dd>
+      <dt>Agent</dt><dd>Nothing to do. The answer is discarded, the card stays open, and the attempt counts as a round.</dd>
+      <dt>Unit sees</dt><dd><pre>[HRT-4031 PRIVILEGE_ESCALATION] Input discarded. Task unchanged.</pre></dd>
+      <dt>Since</dt><dd class="mono">0.1.0</dd>
+    </dl>
+  </article>
+  <h3 class="rh"><span>5000–5029</span>Runtime</h3>
+  <article class="code" id="HRT-5000">
+    <div class="cid"><a href="#HRT-5000"><small>HRT-</small>5000</a><code class="dim">no name</code><span class="arr"><em>http</em></span></div>
+    <dl>
+      <dt>When</dt><dd>Something inside the local runtime threw.</dd>
+      <dt>Agent</dt><dd>Call again. If it repeats, the lead reads the runtime's log.</dd>
+      <dt>Looks like</dt><dd><pre>{&quot;error&quot;: &quot;HRT-5000&quot;, &quot;message&quot;: &quot;...&quot;}</pre></dd>
+      <dt>Since</dt><dd class="mono">0.1.0</dd>
+    </dl>
+  </article>
+  <h3 class="rh"><span>5030–5039</span>Driver</h3>
+  <article class="code" id="HRT-5030">
+    <div class="cid"><a href="#HRT-5030"><small>HRT-</small>5030</a><code>VERIFIER_UNAVAILABLE</code><span class="arr"><em>error</em></span></div>
+    <dl>
+      <dt>When</dt><dd><code>goal_close</code> with <code>done</code>, and no driver is set. A goal closes as done only after a driver checks the evidence against <code>done_when</code>.</dd>
+      <dt>Agent</dt><dd>Leave the goal open and tell the lead a driver is needed.</dd>
+      <dt>Looks like</dt><dd><pre>HRT-5030 VERIFIER_UNAVAILABLE a goal closes as done only after its evidence is checked against done_when</pre></dd>
+      <dt>Since</dt><dd class="mono">0.1.0</dd>
+    </dl>
+  </article>
+  <article class="code" id="HRT-5031">
+    <div class="cid"><a href="#HRT-5031"><small>HRT-</small>5031</a><code>COMPILE_FAILED</code><span class="arr"><em>escalation</em></span></div>
+    <dl>
+      <dt>When</dt><dd>The driver could not turn the unit's answer into the fields the agent asked for: it returned no usable action or hit its notebook lookup limit. Also raised when a card that needs the driver is sent with no driver set.</dd>
+      <dt>Agent</dt><dd>Read the job, then send a simpler task or ask for fewer fields.</dd>
+      <dt>Looks like</dt><dd><pre>{&quot;type&quot;: &quot;escalated&quot;, &quot;job&quot;: &quot;j_…&quot;, &quot;tool&quot;: &quot;observe&quot;, &quot;reason&quot;: &quot;HRT-5031 COMPILE_FAILED&quot;}</pre></dd>
+      <dt>Since</dt><dd class="mono">0.1.0</dd>
+    </dl>
+  </article>
+</div>
+<!-- codes:end -->
+  </section>
+
+  <section class="blk" id="arrival">
+    <h2><span class="no">3</span>How a code reaches the agent</h2>
+    <p class="lede">Most codes fail the call. A few arrive inside a result, as the reason a job was escalated, or on the unit's own screen.</p>
+    <table class="dt">
+      <thead><tr><th>Path</th><th>Codes</th><th>What the agent sees</th></tr></thead>
+      <tbody>
+        <tr><td><em>error</em></td><td class="mono">4000 4001 4004 4009 4020 4021 4030 5030</td><td><code>{"isError": true, "content": [{"type": "text", "text": "HRT-4020 BUDGET_EXCEEDED remaining 14.5 USD"}]}</code></td></tr>
+        <tr><td><em>result</em></td><td class="mono">4009</td><td>The job settles; the code is a field of its result. <code>{"done": false, "code": "HRT-4009"}</code></td></tr>
+        <tr><td><em>escalation</em></td><td class="mono">5031</td><td>The job ends as <code>escalated</code> with the code as its reason, and the goal's next pass is woken.</td></tr>
+        <tr><td><em>card</em></td><td class="mono">4031</td><td>Nothing. The line prints on the unit's phone and the card stays open.</td></tr>
+        <tr><td><em>http</em></td><td class="mono">5000</td><td>HTTP 500 from the local runtime, body <code>{"error": "HRT-5000", "message": "…"}</code></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="blk" id="growth">
+    <h2><span class="no">4</span>How a code gets a number</h2>
+    <p class="lede">The same way a tool variant enters the catalog. Codes start local and are counted; the registry takes in only what several units found on their own.</p>
+    <div class="steps">
+      <div class="step"><span class="lb">Local <b>later</b></span><h3>A runtime names a new case</h3><p>A failure no code covers gets a local name on that runtime and is used there. Nothing leaves the machine by default.</p></div>
+      <div class="step"><span class="lb">Counted <b>later</b></span><h3>Separate units hit it too</h3><p>The same case, named independently on runtimes that share no lead, is grouped as one.</p></div>
+      <div class="step"><span class="lb">Registered <b class="now">now: 11</b></span><h3>It takes the next free number</h3><p>In the range it belongs to, with one name, one meaning and a line in the log below. A number, once given, is never reused.</p></div>
+    </div>
+    <p class="rule">No code is added by hand-written request. The 11 codes of 0.1.0 are the ones the runtime raises today.</p>
+  </section>
+
+  <section class="blk" id="log">
+    <h2><span class="no">5</span>Log</h2>
+    <table class="dt">
+      <thead><tr><th>Rev</th><th>Date</th><th>Change</th></tr></thead>
+      <tbody>
+<!-- log:begin -->
+<tr><td class="mono">0.1.0</td><td class="mono">2026-11-17</td><td>First registry: 11 codes in 5 ranges. Card tools name a unit when more than one is paired.</td></tr>
+<!-- log:end -->
+      </tbody>
+    </table>
+  </section>
+
+  <footer class="foot"><span>Human Use · MIT</span><span><a href="/">humanuse.dev</a> · <a href="/codes.json">codes.json</a> · <a href="https://github.com/human-use/human-use">GitHub</a></span></footer>
+</div>
+<script>
+/* square ↔ entry: hovering one marks the other */
+document.querySelectorAll(".sl.on").forEach(function (s) {
+  var id = s.getAttribute("href").slice(1), e = document.getElementById(id);
+  if (!e) return;
+  function on(v) { s.classList.toggle("hl", v); e.classList.toggle("hl", v); }
+  s.addEventListener("mouseenter", function () { on(true); }); s.addEventListener("mouseleave", function () { on(false); });
+  e.addEventListener("mouseenter", function () { on(true); }); e.addEventListener("mouseleave", function () { on(false); });
+});
+</script>
+</body>
+</html>

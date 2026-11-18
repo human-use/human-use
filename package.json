@@ -1,0 +1,48 @@
+{
+  "name": "human-use",
+  "version": "0.1.0",
+  "mcpName": "dev.humanuse/human-use",
+  "description": "A device driver for a person. An MCP server: the agent calls a tool, a card prints on a person's phone, and the agent gets JSON back.",
+  "license": "MIT",
+  "type": "module",
+  "homepage": "https://humanuse.dev",
+  "keywords": ["mcp", "mcp-server", "agent", "claude-code", "codex", "human-in-the-loop"],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/human-use/human-use.git"
+  },
+  "bin": {
+    "human-use": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "prompts",
+    "assets",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "prepack": "npm run build",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "dev": "tsx src/cli.ts",
+    "test": "tsx --test test/*.test.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/server": "^2.3.1",
+    "qrcode": "1.5.4",
+    "smol-toml": "1.9.1",
+    "web-push": "4.0.0",
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/qrcode": "1.5.6",
+    "@types/web-push": "3.6.4",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0"
+  }
+}
