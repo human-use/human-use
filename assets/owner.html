@@ -232,8 +232,8 @@ function showTrace(trace, call) {
     if (round.answered_at) line(round.answered_at, "UNIT", round.answer || "—", "unit");
   });
   // The unit's answer is saved; the driver could not read it yet. Nobody has to answer again.
-  if (call.held) line(call.held.since, "HELD", "Answer saved; " + call.held.reason + " · tries " + call.held.tries
-    + (call.held.next_at ? " · next " + clock(call.held.next_at) : " · read when a driver is set"), "end sig");
+  if (call.held) line(call.held.since, "HELD", call.held.confirm ? "Photo saved; " + call.held.reason
+    : "Answer saved; " + call.held.reason + " · tries " + call.held.tries + (call.held.next_at ? " · next " + clock(call.held.next_at) : " · read when a driver is set"), "end sig");
   if (call.compiled) line(null, "RESULT", JSON.stringify(call.compiled), "end");
   else if (call.reason) line(null, call.state.toUpperCase(), call.reason, "end sig");
   if (!trace.childElementCount) line(null, "", "No card shown yet.", "quiet");
@@ -313,7 +313,7 @@ function showUnits(list) {
 async function refreshStatus() {
   try {
     const status = await request("status");
-    $("runtime-status").textContent = "Running";
+    $("runtime-status").textContent = "Running · " + status.version;
     showUnits(status.units);
     $("driver-status").textContent = status.driver + (status.held ? " · " + status.held + " held" : "");
     $("brain-status").textContent = status.brain;

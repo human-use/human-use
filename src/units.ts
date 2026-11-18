@@ -4,7 +4,7 @@ import { PhoneChannel, type PhoneOptions } from "./channels/phone.js";
 import { PhonePush, type SendPush } from "./channels/push.js";
 import { RelayChannel } from "./channels/relay.js";
 import type { WebChannel } from "./channels/web.js";
-import type { Card, CardReport, Channel, Runtime, Unit } from "./runtime.js";
+import { HumanUseError, type Card, type CardReport, type Channel, type JobData, type Runtime, type Unit } from "./runtime.js";
 import type { Store } from "./store.js";
 
 /** What the lead page and `human-use pair` show for one unit. */
@@ -72,8 +72,24 @@ export class UnitLinks implements Channel {
       counts: () => ({
         queued: store.get<{ n: number }>("SELECT COUNT(*) AS n FROM jobs WHERE status = 'queued' AND unit_id = ?", unit.id)!.n,
         review: store.get<{ n: number }>("SELECT COUNT(*) AS n FROM jobs WHERE status = 'review' AND tool <> 'goal_check' AND unit_id = ?", unit.id)!.n,
-        held: store.get<{ n: number }>("SELECT COUNT(*) AS n FROM jobs WHERE status = 'review' AND tool <> 'goal_check' AND unit_id = ? AND json_extract(data, '$.held') IS NOT NULL", unit.id)!.n
+        held: store.get<{ n: number }>(`SELECT COUNT(*) AS n FROM jobs WHERE status = 'review' AND tool <> 'goal_check' AND unit_id = ?
+          AND json_extract(data, '$.held') IS NOT NULL AND json_extract(data, '$.held.confirm') IS NULL`, unit.id)!.n
       }),
+      photoChecks: () => {
+        const reader = this.options.routing?.().reader;
+        return store.all<{ id: string; data: string }>(`SELECT id, data FROM jobs WHERE status = 'review' AND unit_id = ?
+          AND json_extract(data, '$.held.confirm') = ? ORDER BY updated_at`, unit.id, reader ?? "").map(row => {
+          const data = JSON.parse(row.data) as JobData;
+          const from = data.rounds.flatMap(round => round.answer?.file?.kind === "photo" ? [round.answer.file.reader ?? null] : []).at(-1) ?? null;
+          return { job_id: row.id, task: runtime.view(row.id).task, from, to: data.held!.confirm! };
+        });
+      },
+      confirmPhoto: (jobId, reader, send) => {
+        if (store.get<{ unit_id: string | null }>("SELECT unit_id FROM jobs WHERE id = ?", jobId)?.unit_id !== unit.id) {
+          throw new HumanUseError("HRT-4004", `NO_SUCH_JOB ${jobId}`);
+        }
+        runtime.confirmPhoto(jobId, reader, send);
+      },
       ...(push ? { onCard: (card: Card) => {
         void push.notify(card).catch(() => console.error("[human-use] could not save expired push registration"));
       } } : {}),

@@ -239,7 +239,7 @@ export async function ownerRequest(req: IncomingMessage, res: ServerResponse, op
     res.end(html);
   } else if (req.method === "GET" && path === "/owner/status") {
     const open = runtime.store.get<{ count: number }>("SELECT COUNT(*) AS count FROM jobs WHERE status = 'open'")?.count ?? 0;
-    const held = runtime.store.get<{ count: number }>("SELECT COUNT(*) AS count FROM jobs WHERE status = 'review' AND json_extract(data, '$.held') IS NOT NULL")?.count ?? 0;
+    const held = runtime.store.get<{ count: number }>("SELECT COUNT(*) AS count FROM jobs WHERE status = 'review' AND json_extract(data, '$.held') IS NOT NULL AND json_extract(data, '$.held.confirm') IS NULL")?.count ?? 0;
     json(res, 200, { version: VERSION, units: unitRows(runtime, units), driver: backendLabel(options.driver),
       brain: brainLabel(options.brain), open_jobs: open, held, calls: calls(runtime) });
   } else if (req.method === "GET" && path === "/owner/pair") {

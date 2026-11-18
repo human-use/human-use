@@ -78,7 +78,8 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<Daemon> 
   const runtime = new Runtime({
     store, driver, brain,
     notebook: unit => new FileNotebook(join(unitDir(stateDir, unit), "notebook")),
-    lang: options.lang ?? process.env.HUMAN_USE_LANG ?? settings.lang ?? Intl.DateTimeFormat().resolvedOptions().locale
+    lang: options.lang ?? process.env.HUMAN_USE_LANG ?? settings.lang ?? Intl.DateTimeFormat().resolvedOptions().locale,
+    reader: (): string => readerOf(lead.driver).reader
   });
   migrateLegacyUnit(runtime, store, stateDir);
 
@@ -108,7 +109,12 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<Daemon> 
     brain: (options.brain === undefined ? brainSpec : options.brain === null ? "none" : "custom") as BackendSpec,
     /** A saved setting takes effect now: the next card uses the new driver, the next wake the new brain. */
     apply(update: { driver?: string | undefined; brain?: string | undefined }) {
-      if (update.driver !== undefined) { runtime.driver = makeDriver(update.driver); lead.driver = update.driver; }
+      if (update.driver !== undefined) {
+        // The new reader is named before the runtime re-reads held answers, so a photo agreed for the old one waits.
+        const driver = makeDriver(update.driver);
+        lead.driver = update.driver;
+        runtime.driver = driver;
+      }
       if (update.brain !== undefined) { runtime.brain = makeBrain(update.brain, brainExit); lead.brain = update.brain; }
     }
   };

@@ -48,7 +48,8 @@ export interface Answer {
   value?: number | undefined;
   checked?: number[] | undefined;
   text?: string | undefined;
-  file?: { path: string; kind: "photo" | "audio" | "document"; captured?: "live" | "upload" | undefined } | undefined;
+  /** `reader`: who the unit agreed would read this photo, as the phone named it. The driver gets the photo only if that is still who reads it. */
+  file?: { path: string; kind: "photo" | "audio" | "document"; captured?: "live" | "upload" | undefined; reader?: string | undefined } | undefined;
   location?: { lat: number; lon: number } | undefined;
 }
 
@@ -87,7 +88,7 @@ export interface JobData {
    * The unit's answer is saved and waits for the driver, which is not set or could not be reached. Retried at
    * `next_at` (null: when a driver is set); cleared once the driver reads it. Nobody answers the card again.
    */
-  held?: { since: string; reason: string; tries: number; next_at: string | null } | undefined;
+  held?: { since: string; reason: string; tries: number; next_at: string | null; confirm?: string | undefined } | undefined;
 }
 
 export interface Job {
@@ -223,6 +224,8 @@ export interface CardReport {
   reason?: string | undefined;
   /** The answer arrived and is saved; the driver reads it later. The unit has nothing to resend. */
   held?: true | undefined;
+  /** The photo waits for the unit to agree that this reader reads it. */
+  confirm?: string | undefined;
 }
 
 export interface Briefing {
@@ -357,6 +360,8 @@ export interface RuntimeOptions {
   /** Language the units read. Card content the driver writes uses it. */
   lang?: string | undefined;
   onError?: ((error: unknown, where: string) => void) | undefined;
+  /** Who reads photos with the current driver, named as the phone names it. A photo reaches the driver only if its unit agreed to that reader. */
+  reader?: (() => string) | undefined;
 }
 
 /** Maintenance reported as overdue in goal calls: tool, label, hours after the last completed call. */
@@ -379,6 +384,7 @@ export class Runtime {
   readonly store: Store;
   readonly clock: Clock;
   private current: Driver | null;
+  private readonly reader: (() => string) | null;
   channel: Channel | null;
   brain: Brain | null;
   private readonly notebooks: ((unit: string) => Notebook | null) | null;
@@ -391,6 +397,7 @@ export class Runtime {
     this.store = options.store;
     this.clock = options.clock ?? systemClock;
     this.current = options.driver ?? null;
+    this.reader = options.reader ?? null;
     this.channel = options.channel ?? null;
     this.brain = options.brain ?? null;
     this.notebooks = options.notebook ?? null;
@@ -584,7 +591,9 @@ export class Runtime {
       ...(job.data.evidence?.length ? { evidence: job.data.evidence } : {}),
       ...(files.length ? { files } : {}),
       ...(job.data.reason ? { reason: job.data.reason } : {}),
-      ...(job.data.held && job.status === "review" ? { held: `answer saved; the driver ${this.driver ? "could not be reached" : "is not set"} since ${job.data.held.since}` } : {}),
+      ...(job.data.held && job.status === "review" ? { held: job.data.held.confirm
+        ? `photo saved; waiting for the unit to agree that ${job.data.held.confirm} reads it, since ${job.data.held.since}`
+        : `answer saved; the driver ${this.driver ? "could not be reached" : "is not set"} since ${job.data.held.since}` } : {}),
       ...(job.data.wake_on_settle && !TERMINAL.has(job.status) ? { wake_on_settle: true as const } : {})
     };
   }
@@ -788,6 +797,11 @@ export class Runtime {
   private async consult(jobId: string, event: JobEvent, answer: Answer | null): Promise<void> {
     const job = this.job(jobId);
     if (!this.driver) return;
+    const reader = this.reader?.();
+    if (reader !== undefined && job.data.rounds.some(round => round.answer?.file?.kind === "photo" && round.answer.file.reader !== reader)) {
+      if (job.status === "review") this.holdPhoto(job, reader);
+      return;
+    }
     const goal = event === "goal_check" && job.goal_id ? this.goal(job.goal_id) : null;
     const notebook = this.notebook(job.unit_id);
     const input: DriverInput = {
@@ -893,6 +907,37 @@ export class Runtime {
     if (tries > 1) return;
     this.store.event(this.now(), this.driver ? "driver_unreachable" : "driver_missing", job.id, job.goal_id, { failure: held.reason });
     this.report(saved, { held: true });
+  }
+
+  /** A photo its unit agreed to send to another reader waits until the unit agrees to this one. Nothing retries it. */
+  private holdPhoto(job: Job, reader: string): void {
+    if (job.data.held?.confirm === reader) return;
+    const agreed = job.data.rounds.filter(round => round.answer?.file?.kind === "photo").at(-1)?.answer?.file?.reader;
+    const held = { since: job.data.held?.since ?? this.now(), tries: job.data.held?.tries ?? 0, next_at: null, confirm: reader,
+      reason: `the unit sent the photo for ${agreed ?? "another driver"}; it decides on the phone whether ${reader} reads it`.slice(0, 300) };
+    const saved = this.saveJob(job, { data: { ...job.data, held } });
+    this.store.event(this.now(), "photo_reader_changed", job.id, job.goal_id, { reader });
+    this.report(saved, { held: true, confirm: reader });
+  }
+
+  /** The unit answered whether `reader`, the current driver, may read the photo it sent for another. Channels call this. */
+  confirmPhoto(jobId: string, reader: string, send: boolean): void {
+    const job = this.job(jobId);
+    const waiting = job.data.held?.confirm;
+    if (job.status !== "review" || !waiting) throw new HumanUseError("HRT-4009", `JOB_NOT_PENDING ${job.status}`);
+    if (reader !== waiting || reader !== this.reader?.()) throw new HumanUseError("HRT-4009", "JOB_NOT_PENDING the driver changed again");
+    if (!send) {
+      this.store.event(this.now(), "photo_withheld", job.id, job.goal_id, { reader });
+      this.escalate(this.saveJob(job, { data: { ...job.data, held: undefined } }),
+        `the unit did not let ${reader} read the photo; it stays on the lead's computer`);
+      return;
+    }
+    const rounds = job.data.rounds.map(round => round.answer?.file?.kind === "photo"
+      ? { ...round, answer: { ...round.answer, file: { ...round.answer.file, reader } } } : round);
+    const saved = this.saveJob(job, { data: { ...job.data, rounds, held: undefined } });
+    this.store.event(this.now(), "photo_reader_agreed", job.id, job.goal_id, { reader });
+    const last = saved.data.rounds.at(-1);
+    this.track(this.consult(job.id, last?.answer ? "answer" : "start", last?.answer ?? null), "driver.photo");
   }
 
   /** Hand held answers to the driver again: those due for a retry, or all of them when a driver was just set. */
@@ -1052,7 +1097,7 @@ export class Runtime {
     this.report(job, { result: compiled });
   }
 
-  private report(job: Job, outcome: Pick<CardReport, "result" | "reason" | "held">): void {
+  private report(job: Job, outcome: Pick<CardReport, "result" | "reason" | "held" | "confirm">): void {
     if (job.data.rounds.at(-1)?.answer) this.channel?.report?.({
       job_id: job.id, unit: job.unit_id, round: job.data.rounds.length, at: this.now(), ...outcome
     });
@@ -1316,7 +1361,7 @@ export class Runtime {
     const since = goal.data.last_wake_at ?? null;
     const events = this.store.all<{ at: string; kind: string; ref: string | null; data: string }>(
       `SELECT at, kind, ref, data FROM events WHERE goal_id = ? AND (? IS NULL OR at > ?)
-       AND kind NOT IN ('card_shown','answer','job_created','compile_failed','driver_missing','driver_unreachable','driver_back','overseer_missing','note','woken','brain_exit') ORDER BY seq DESC LIMIT 100`,
+       AND kind NOT IN ('card_shown','answer','job_created','compile_failed','driver_missing','driver_unreachable','driver_back','photo_reader_changed','photo_reader_agreed','overseer_missing','note','woken','brain_exit') ORDER BY seq DESC LIMIT 100`,
       goalId, since, since).reverse().map(row => ({ ...row, data: JSON.parse(row.data) as unknown }));
     const notes = this.store.all<{ at: string; data: string }>("SELECT at, data FROM events WHERE goal_id = ? AND kind = 'note' ORDER BY seq", goalId)
       .map(row => ({ at: row.at, ...(JSON.parse(row.data) as { decision: string; reason: string; metric?: number; agenda?: string }) }));

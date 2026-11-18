@@ -493,6 +493,10 @@ button.primary{background:var(--ink);color:var(--paper);font-weight:600}
 @media (max-width:560px){
   .toc a{padding-right:16px}
 }
+@media (max-width:400px){
+  .cmd code,.inst .cmd code{font-size:13px;padding-left:10px;padding-right:10px}
+  .cmd button{padding:0 12px}
+}
 @media (max-width:1100px){
   .po{grid-template-columns:minmax(0,1fr);grid-template-areas:"rd" "fig" "gr";grid-template-rows:none}
   .po-rd{position:sticky;top:env(safe-area-inset-top,0px);z-index:3}
@@ -539,7 +543,7 @@ button.primary{background:var(--ink);color:var(--paper);font-weight:600}
       </figure>
       <h1>A device driver for a person.</h1>
       <p>An MCP server. The agent calls a tool such as <code>errand</code> or <code>photo</code>, a card prints on a unit's phone, and the agent gets JSON back. A unit is a person: someone on the lead's team, or the lead.</p>
-      <div class="cmd"><code>npx -y human-use install</code><button type="button" data-copy="npx -y human-use install">Copy</button></div>
+      <div class="cmd"><code>npx -y human-use@latest install</code><button type="button" data-copy="npx -y human-use@latest install">Copy</button></div>
     </div>
     <figure class="try" id="try" aria-label="Try it: three cards on a phone">
       <header><span><b class="lb">Try it</b><code>unit: trial</code></span><span id="ty-st" role="status">idle</span></header>
@@ -556,7 +560,7 @@ button.primary{background:var(--ink);color:var(--paper);font-weight:600}
   </section>
 
   <dl class="tb">
-    <div><dt>Part</dt><dd>human-use 0.1.2</dd></div>
+    <div><dt>Part</dt><dd>human-use 0.1.3</dd></div>
     <div><dt>Speaks</dt><dd>MCP over stdio</dd></div>
     <div><dt>Agents</dt><dd>Claude Code, Codex, any MCP host</dd></div>
     <div><dt>Runs on</dt><dd>The lead's computer, Node.js 22.13+</dd></div>
@@ -686,7 +690,7 @@ button.primary{background:var(--ink);color:var(--paper);font-weight:600}
   <section class="blk" id="install">
     <div class="inst">
       <div><div class="lb">Install</div><h2>Get a person</h2><p>Agents read <a href="/install.md">humanuse.dev/install.md</a>. Or run:</p></div>
-      <div class="cmd"><code>npx -y human-use install</code><button type="button" data-copy="npx -y human-use install">Copy</button></div>
+      <div class="cmd"><code>npx -y human-use@latest install</code><button type="button" data-copy="npx -y human-use@latest install">Copy</button></div>
     </div>
   </section>
 
@@ -1066,9 +1070,9 @@ function playBox(state) {
   } else if (state === "running") {
     p.replaceChildren(el("div", { className: "lb", textContent: "Goal" }), el("div", { className: "run" }, el("b", { textContent: "g_7e1c0a" }), " · active · ", GOAL.goal));
   } else {
-    var copy = el("button", { type: "button", textContent: "Copy" }); copy.dataset.copy = "npx -y human-use install"; bindCopy(copy);
+    var copy = el("button", { type: "button", textContent: "Copy" }); copy.dataset.copy = "npx -y human-use@latest install"; bindCopy(copy);
     var again = el("button", { type: "button", className: "again", textContent: "Replay" }); again.addEventListener("click", start);
-    p.replaceChildren(el("div", { className: "lb", textContent: "goal_close · done · day 718" }), el("div", { className: "cmd" }, el("code", { textContent: "npx -y human-use install" }), copy), again);
+    p.replaceChildren(el("div", { className: "lb", textContent: "goal_close · done · day 718" }), el("div", { className: "cmd" }, el("code", { textContent: "npx -y human-use@latest install" }), copy), again);
   }
 }
 
@@ -1436,7 +1440,7 @@ if (CATALOG) (function () {
     if (!dip) sv(svg, "circle", { class: "dm", cx: bx + 52, cy: by + 52, r: 6 });
     var mk = sv(svg, "g", { transform: "translate(" + cx + " " + cy + ")" + (dip ? " rotate(-90)" : "") });
     sv(mk, "text", { class: "mk big", y: dip ? -5 : -14, "text-anchor": "middle", "font-size": dip ? 13 : 25 }, "HUMAN USE");
-    sv(mk, "text", { class: "mk", y: dip ? 10 : 12, "text-anchor": "middle", "font-size": dip ? 8.5 : 11 }, dip ? "UNIT \u00b7 0.1.2 \u00b7 " + live + "/" + N : "UNIT \u00b7 0.1.2");
+    sv(mk, "text", { class: "mk", y: dip ? 10 : 12, "text-anchor": "middle", "font-size": dip ? 8.5 : 11 }, dip ? "UNIT \u00b7 0.1.3 \u00b7 " + live + "/" + N : "UNIT \u00b7 0.1.3");
     if (!dip) sv(mk, "text", { class: "mk", y: 30, "text-anchor": "middle", "font-size": 10 }, N + " PINS \u00b7 " + live + " CONNECTED");
 
     /* category brackets, inside the package along each run of pins */

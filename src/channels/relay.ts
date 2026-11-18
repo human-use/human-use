@@ -163,6 +163,8 @@ export class RelayChannel {
       body = this.phone.unpair();
     } else if (method === "push_subscribe") {
       body = this.push.subscribe(payload) ? { ok: true } : { error: "INVALID_SUBSCRIPTION" };
+    } else if (method === "route" && payload && typeof payload === "object") {
+      body = this.phone.route(payload as Record<string, unknown>);
     } else if (method === "answer" && payload && typeof payload === "object") {
       const response = payload as { job_id?: unknown; round?: unknown; answer?: unknown };
       if (typeof response.round === "number" && Number.isSafeInteger(response.round) && response.round > 0) {

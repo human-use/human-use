@@ -49,14 +49,14 @@ Human Use 把人作为 MCP 工具接到 AI agent 上。agent 调用 `photo`、`e
 需要 Node.js 22.13 或更新版本。
 
 ```bash
-npx -y human-use install
+npx -y human-use@latest install
 ```
 
 这一条命令会把 Human Use 注册到它找到的 agent 软件（Claude Code、Codex），启动 runtime，并在 `http://127.0.0.1:7337/` 打开 lead 页面。在 "Add unit" 下给单元起名，用要接收卡片的手机扫它的配对二维码，然后新开一个 agent 会话，让它加载工具。在手机页面底部那一行打开通知。iPhone 上要先把页面添加到主屏幕，从图标打开，再扫一次配对二维码：从图标打开的页面和 Safari 不共享存储。
 
 之后每个单元都用同样的方法添加，或者用 `npx human-use pair --unit <name>`，每个单元有自己的链接和二维码。
 
-升级时再运行一次 `npx -y human-use@latest install`。它会让 agent 软件指向新版本，下一次工具调用会替换掉旧的 runtime。
+升级时再运行一次同一条命令。它会打印装上的版本，并让 agent 软件指向它；下一次工具调用会替换掉旧的 runtime。lead 页面显示正在运行的版本。
 
 如果手机链接泄露或手机丢了，在 lead 页面上点那个单元旁边的 "New link"，或者运行 `npx human-use pair --unit <name> --new`。那个单元的旧链接立即失效，其他单元的链接不受影响。人也可以在手机的空闲界面解除配对。
 
@@ -125,7 +125,7 @@ codex mcp remove human-use
 
 每次 driver 调用会把任务和本人的回答（最多两张照片）发给这个后端；用 `ollama` 时留在本机。其余一切都留在 `~/.human-use`，包括 driver 调用的日志。
 
-第一次发照片前，手机页面会写明照片存到哪里、由哪个后端读取；后端换了会再问一次。driver 连不上时，回答会保存下来：这次调用在 lead 页面上显示为 `held`，手机上显示已收到。runtime 会重试，间隔最长 15 分钟，driver 恢复后读取保存的回答。没有人需要重答这张卡。
+第一次发照片前，手机页面会写明照片存到哪里、由哪个后端读取；后端换了会再问一次。照片只给本人同意的那个后端读：照片还没读、后端就换了，手机会再问一次；本人不发，照片就留在 lead 的电脑上。driver 连不上时，回答会保存下来：这次调用在 lead 页面上显示为 `held`，手机上显示已收到。runtime 会重试，间隔最长 15 分钟，driver 恢复后读取保存的回答。没有人需要重答这张卡。
 
 ## 开发
 

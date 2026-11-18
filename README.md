@@ -49,14 +49,14 @@ One runtime can drive several units, each with its own phone. Every card tool ta
 Needs Node.js 22.13 or newer.
 
 ```bash
-npx -y human-use install
+npx -y human-use@latest install
 ```
 
 That one command registers Human Use with the agent software it finds (Claude Code, Codex), starts the runtime, and opens the lead page at `http://127.0.0.1:7337/`. Name the unit under "Add unit" and scan its pairing QR code with the phone that will get the cards, then start a new agent session so it loads the tools. Turn on notifications from the line at the bottom of the phone page. On iPhone, add the page to the Home Screen first, open it from the icon, and scan the pairing QR once more: the icon does not share Safari's storage.
 
 Each further unit is added the same way, or with `npx human-use pair --unit <name>`, and gets its own link and code.
 
-To upgrade, run `npx -y human-use@latest install` again. It points the agent software at the new version, and the next tool call replaces the older runtime.
+To upgrade, run the same command again. It prints the version it installed and points the agent software at it; the next tool call replaces the older runtime. The lead page shows the version that is running.
 
 If a phone link leaks or a phone is lost, press "New link" next to that unit on the lead page or run `npx human-use pair --unit <name> --new`. That unit's old links stop working at once; other units keep theirs. The person can also unpair from the phone's idle screen.
 
@@ -125,7 +125,7 @@ Set the driver's backend with `HUMAN_USE_DRIVER` or `driver` in the runtime's `c
 
 Each driver call sends the task and the person's answer, with up to two photos, to that backend; `ollama` keeps it on this computer. Everything else stays in `~/.human-use`, including a log of driver calls.
 
-Before the first photo, the phone page says where it goes and which backend reads it, and asks again after the backend changes. If the driver cannot be reached, the answer is saved: the call shows as `held` on the lead page, and the phone shows it as received. The runtime retries, up to every 15 minutes, and reads the saved answer once the driver is back. Nobody answers the card again.
+Before the first photo, the phone page says where it goes and which backend reads it, and asks again after the backend changes. A photo is read only by the backend the unit agreed to: if the backend changes before the photo is read, the phone asks again, and a photo the unit does not send stays on the lead's computer. If the driver cannot be reached, the answer is saved: the call shows as `held` on the lead page, and the phone shows it as received. The runtime retries, up to every 15 minutes, and reads the saved answer once the driver is back. Nobody answers the card again.
 
 ## Develop
 

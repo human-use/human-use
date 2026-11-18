@@ -14,6 +14,9 @@ export interface PhoneOptions {
   counts(): { queued: number; review: number; held: number };
   /** Who reads the unit's answers and photos. */
   routing?(): { reader: string; local: boolean };
+  /** Photos held because the lead changed the driver after the person sent them: the new one reads each only if the person agrees. */
+  photoChecks?(): Array<{ job_id: string; task: string; from: string | null; to: string }>;
+  confirmPhoto?(jobId: string, reader: string, send: boolean): void;
   onCard?(card: Card): void;
   /** The person unpaired this phone. */
   unpair?(): Promise<void>;
@@ -80,6 +83,7 @@ export class PhoneChannel implements Channel {
       reports: this.reports,
       notice: this.notice && now - this.notice.at < 15_000 ? this.notice.text : null,
       routing: this.options.routing?.() ?? null,
+      confirm: this.options.photoChecks?.() ?? [],
       ...this.options.counts()
     };
   }
@@ -107,6 +111,21 @@ export class PhoneChannel implements Channel {
     return { ok: true };
   }
 
+  /** The person answered whether the current driver may read a photo held for it. */
+  route(payload: { job_id?: unknown; reader?: unknown; send?: unknown }): { ok: true } | { error: string } {
+    this.lastSeenAt = Date.now();
+    if (typeof payload.job_id !== "string" || typeof payload.reader !== "string" || typeof payload.send !== "boolean" || !this.options.confirmPhoto) {
+      return { error: "REJECTED" };
+    }
+    try {
+      this.options.confirmPhoto(payload.job_id, payload.reader, payload.send);
+    } catch (error) {
+      return { error: error instanceof Error ? error.message.split(" ")[0]! : "REJECTED" };
+    }
+    this.bump();
+    return { ok: true };
+  }
+
   /** Keep only the shapes an Answer may have, and move any file out of the request onto disk. */
   private clean(card: Card, raw: Record<string, unknown>): Answer {
     const out: Answer = {};
@@ -122,7 +141,8 @@ export class PhoneChannel implements Channel {
       if (match && ext) {
         const path = join(this.options.filesDir, `${card.job_id}-${card.round}-${randomUUID()}${ext}`);
         writeFileSync(path, Buffer.from(match[3]!, "base64"), { flag: "wx" });
-        out.file = { path, kind: match[2] === "image" ? "photo" : "audio", captured: raw.fresh === true ? "live" : "upload" };
+        out.file = { path, kind: match[2] === "image" ? "photo" : "audio", captured: raw.fresh === true ? "live" : "upload",
+          ...(match[2] === "image" && typeof raw.reader === "string" ? { reader: raw.reader.slice(0, 200) } : {}) };
       }
     }
     return out;

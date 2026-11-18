@@ -76,6 +76,8 @@ export async function openPhoneRelay() {
         connection.firstState = false;
       } else if (path === "/api/answer") {
         request = { id, method: "answer", payload: body };
+      } else if (path === "/api/route") {
+        request = { id, method: "route", payload: body };
       } else if (path === "/api/unpair") {
         request = { id, method: "unpair" };
       } else if (path === "/api/push/key") {

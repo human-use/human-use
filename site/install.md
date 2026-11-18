@@ -7,10 +7,10 @@ You are an agent. These steps give you people as MCP tools. Each person is a uni
 Needs Node.js 22.13 or newer.
 
 ```bash
-npx -y human-use install
+npx -y human-use@latest install
 ```
 
-It registers the `human-use` MCP server with the agent software it finds (Claude Code, Codex), starts the runtime, and opens the lead page at `http://127.0.0.1:7337/`. It takes the defaults when no one is at the terminal. To upgrade, run `npx -y human-use@latest install` again: the host entry moves to the new version and the next tool call replaces the older runtime.
+It registers the `human-use` MCP server with the agent software it finds (Claude Code, Codex), starts the runtime, and opens the lead page at `http://127.0.0.1:7337/`. It takes the defaults when no one is at the terminal. It prints the version it installed; the lead page shows the one running. To upgrade, run the same command again: the host entry moves to the new version and the next tool call replaces the older runtime.
 
 | Flag | Effect |
 |---|---|
@@ -61,11 +61,13 @@ With `driver` set to `none`, cards whose answer is already structured go out as 
 
 If the driver cannot be reached after a unit answers, the job stays in review with `held`. The answer is saved, the runtime retries, and `wait` returns the result once the driver is back. Do not send the card again.
 
+A photo is read only by the backend its unit agreed to. If the lead changes the driver while a photo is held, the job stays held until the unit answers on the phone. If the unit does not send it, the job is escalated and the photo stays on this computer.
+
 ## What leaves the computer
 
 The runtime runs on this computer. Units, goals, answers, photos and a log of driver calls stay in `~/.human-use`.
 
-Each driver call sends the task and the unit's answer, with up to two photos, to the backend the lead chose. With `ollama` it stays on this computer. Before a unit's first photo, the phone page says where it goes and which backend reads it, and asks again after the backend changes.
+Each driver call sends the task and the unit's answer, with up to two photos, to the backend the lead chose. With `ollama` it stays on this computer. Before a unit's first photo, the phone page says where it goes and which backend reads it, and asks again after the backend changes, also for a photo sent but not yet read.
 
 Phones reach the runtime through the relay at `unit.humanuse.dev`, which forwards end-to-end encrypted frames. It keeps channel ids and push subscriptions, never card text or photos. With `relay` set to `none`, phones pair to a direct address on the same Wi-Fi, without push notifications.
 

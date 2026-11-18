@@ -227,6 +227,7 @@ export async function install(argv: string[]): Promise<{ registered: boolean; op
     }
   });
   const relay = values.relay === undefined ? undefined : relaySetting(values.relay);
+  console.log(`human-use ${VERSION}`);
   // User scope by default, so the tools are there in every folder. --global is the default and stays accepted.
   const project = values.project === true && values.global !== true;
   const selected = await chooseHosts(values.host, HOSTS.filter(name => commandOnPath(name)), project);

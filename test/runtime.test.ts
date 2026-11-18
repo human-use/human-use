@@ -31,13 +31,13 @@ class ScriptedDriver implements Driver {
   async run(input: DriverInput) { this.inputs.push(input); return this.script(input); }
 }
 
-function setup(driver: Driver | null = null, start = "2026-11-16T08:00:00", units = ["mika"]) {
+function setup(driver: Driver | null = null, start = "2026-11-16T08:00:00", units = ["mika"], reader?: () => string) {
   const dir = mkdtempSync(join(tmpdir(), "human-use-"));
   const store = new Store(join(dir, "runtime.sqlite"));
   const clock = new FakeClock(new Date(start));
   const channel = new FakeChannel();
   const notebook = new FileNotebook(join(dir, "notebook"));
-  const runtime = new Runtime({ store, clock, channel, driver, notebook: () => notebook, onError: error => { throw error; } });
+  const runtime = new Runtime({ store, clock, channel, driver, notebook: () => notebook, onError: error => { throw error; }, reader });
   for (const name of units) runtime.addUnit(name);
   return { runtime, clock, channel, store, notebook, done: () => { store.close(); rmSync(dir, { recursive: true, force: true }); } };
 }
@@ -789,5 +789,68 @@ test("a driver that answers with something other than actions escalates; it is n
     await runtime.settle();
     assert.equal(runtime.view(job).state, "escalated");
     assert.equal(runtime.view(job).reason, "HRT-5031 COMPILE_FAILED");
+  } finally { done(); }
+});
+
+test("a held photo goes only to the reader its unit agreed to; a new driver waits for the unit, and the old one needs no asking", async () => {
+  let reader = "Ollama on the lead's computer";
+  const first = new ScriptedDriver(() => { throw new Error("connect ECONNREFUSED 127.0.0.1:11434"); });
+  const { runtime, channel, clock, done } = setup(first, undefined, undefined, () => reader);
+  const photo = (agreed: string) => ({ file: { path: "receipt.jpg", kind: "photo" as const, captured: "live" as const, reader: agreed } });
+  try {
+    const { job } = runtime.dispatch("photo", { instruction: "PHOTO the receipt", want: { total: "total on the receipt" } });
+    runtime.answer(job, photo(reader));
+    await runtime.settle();
+    assert.match(runtime.view(job).held!, /could not be reached/);
+
+    reader = "Claude haiku, Anthropic's service";
+    const cloud = new ScriptedDriver(() => [{ type: "complete", result: { total: "12.40" } }]);
+    runtime.driver = cloud;
+    await runtime.settle();
+    assert.equal(cloud.inputs.length, 0, "the new driver did not get the photo");
+    assert.match(runtime.view(job).held!, /waiting for the unit to agree that Claude haiku, Anthropic's service reads it/);
+    assert.equal(channel.reports.at(-1)?.confirm, reader, "the phone is asked");
+    clock.advance(3600); runtime.tick(); await runtime.settle();
+    assert.equal(cloud.inputs.length, 0, "nothing retries it without the unit");
+
+    reader = "Ollama on the lead's computer";
+    const local = new ScriptedDriver(() => [{ type: "complete", result: { total: "12.40" } }]);
+    runtime.driver = local;
+    await runtime.settle();
+    assert.equal(runtime.view(job).state, "done", "back to the reader the unit agreed to: read without asking");
+    assert.equal(local.inputs.length, 1);
+    assert.equal(channel.cards.filter(card => card.job_id === job).length, 1);
+  } finally { done(); }
+});
+
+test("the unit decides whether a new driver reads its held photo: agreeing sends it, declining keeps it on the lead's computer", async () => {
+  let reader = "Ollama on the lead's computer";
+  const { runtime, done } = setup(new ScriptedDriver(() => []), undefined, undefined, () => reader);
+  const answer = (job: string) => runtime.answer(job, { file: { path: "shelf.jpg", kind: "photo", captured: "live", reader: "none" } });
+  try {
+    const sent = runtime.dispatch("photo", { instruction: "PHOTO the shelf", want: { gaps: "empty spots" } }).job;
+    const kept = runtime.dispatch("photo", { instruction: "PHOTO the desk", want: { items: "what is on it" } }).job;
+    // The lead removed the driver before the unit answered; the phone said the photos wait for one.
+    runtime.driver = null; reader = "none";
+    answer(sent); answer(kept);
+
+    reader = "Codex gpt-6-luna, OpenAI's service";
+    const cloud = new ScriptedDriver(input => [{ type: "complete", result: { [Object.keys(input.job.want!)[0]!]: "seen" } }]);
+    runtime.driver = cloud;
+    await runtime.settle();
+    assert.equal(cloud.inputs.length, 0);
+
+    assert.throws(() => runtime.confirmPhoto(sent, "Ollama on the lead's computer", true), /HRT-4009 JOB_NOT_PENDING the driver changed again/);
+    runtime.confirmPhoto(sent, reader, true);
+    await runtime.settle();
+    assert.deepEqual(runtime.view(sent).result, { gaps: "seen" });
+
+    runtime.confirmPhoto(kept, reader, false);
+    await runtime.settle();
+    const view = runtime.view(kept);
+    assert.equal(view.state, "escalated");
+    assert.match(view.reason!, /did not let Codex gpt-6-luna, OpenAI's service read the photo; it stays on the lead's computer/);
+    assert.equal(cloud.inputs.length, 1, "only the agreed photo reached the driver");
+    assert.throws(() => runtime.confirmPhoto(kept, reader, true), /HRT-4009/);
   } finally { done(); }
 });

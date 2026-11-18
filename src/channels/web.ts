@@ -166,6 +166,11 @@ export class WebChannel {
       this.send(res, 200, phone.unpair(), { "set-cookie": "hu=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax" });
       return;
     }
+    if (req.method === "POST" && url.pathname === "/api/route") {
+      const result = phone.route(await this.body(req) as Record<string, unknown>);
+      this.send(res, "ok" in result ? 200 : 409, result);
+      return;
+    }
     if (req.method === "POST" && url.pathname === "/api/answer") {
       const result = phone.submit(await this.body(req));
       this.send(res, "ok" in result ? 200 : 409, result);
