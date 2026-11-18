@@ -90,6 +90,15 @@ npx human-use config brain codex
 
 </details>
 
+### アンインストール
+
+```bash
+claude mcp remove human-use
+codex mcp remove human-use
+```
+
+runtime はログイン時に起動しないので、次に再起動すれば止まります。ユニット、ゴール、写真、設定はすべて `~/.human-use` にあり、このフォルダを削除すれば消えます。
+
 ## 構成
 
 | 部品 | 役割 |

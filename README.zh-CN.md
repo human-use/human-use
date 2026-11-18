@@ -90,6 +90,15 @@ npx human-use config brain codex
 
 </details>
 
+### 卸载
+
+```bash
+claude mcp remove human-use
+codex mcp remove human-use
+```
+
+runtime 不会随开机启动，所以下次重启后就不在了。单元、目标、照片和设置都在 `~/.human-use` 里，删掉这个文件夹就全部清除。
+
 ## 组成
 
 | 部分 | 作用 |

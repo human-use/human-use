@@ -90,6 +90,15 @@ npx human-use config brain codex
 
 </details>
 
+### 제거
+
+```bash
+claude mcp remove human-use
+codex mcp remove human-use
+```
+
+runtime은 로그인할 때 시작되지 않으므로 다음에 재시작하면 멈춥니다. 유닛, 목표, 사진, 설정은 모두 `~/.human-use`에 있으며, 이 폴더를 지우면 함께 삭제됩니다.
+
 ## 구성 요소
 
 | 구성 요소 | 하는 일 |

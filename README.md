@@ -90,6 +90,15 @@ The phone reaches the runtime two ways at once: through the relay at `unit.human
 
 </details>
 
+### Uninstall
+
+```bash
+claude mcp remove human-use
+codex mcp remove human-use
+```
+
+The runtime does not start at login, so it is gone after the next restart. Units, goals, photos and settings are all in `~/.human-use`; deleting that folder removes them.
+
 ## Pieces
 
 | Piece | What it does |
