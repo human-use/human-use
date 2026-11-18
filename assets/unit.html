@@ -97,6 +97,12 @@ function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
 
 var version = 0, shownJob = null, shownRound = 0, seen = new Set(), sending = false, lastSubmit = 0;
 var activeCard = null, pending = null, reporting = 0, latestState = null, lastReport = null;
+// A report steps aside on its own after three seconds. A tap meant for its Continue button can land on the next card,
+// so taps on the card area are dropped for a moment after that swap.
+var swappedAt = 0;
+document.addEventListener("click", function (event) {
+  if (Date.now() - swappedAt < 600 && $("body").contains(event.target)) { event.preventDefault(); event.stopPropagation(); }
+}, true);
 
 var relay = null;
 var leaving = false;   // the person unpaired this phone; stop polling
@@ -423,7 +429,7 @@ function showReport(report) {
     if (latestState) void render(latestState);
   };
   $("body").replaceChildren(rows, button("Continue", dismiss, "primary"));
-  reporting = setTimeout(dismiss, 3000);
+  reporting = setTimeout(function () { swappedAt = Date.now(); dismiss(); }, 3000);
 }
 
 async function submit(card, answer) {
