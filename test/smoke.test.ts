@@ -57,12 +57,12 @@ test("an install from the npx cache registers a copy that survives the cache", a
     rmSync(join(root, "npm-cache"), { recursive: true, force: true });
     assert.ok(existsSync(entry));
     assert.ok(existsSync(join(app, VERSION, "node_modules", "zod", "index.js")));
-    assert.equal(await stableEntry(entry, app), realpathSync(entry));
+    assert.equal(await stableEntry(entry, app), realpathSync.native(entry));
 
     const source = join(root, "checkout", "dist", "cli.js");
     mkdirSync(join(root, "checkout", "dist"), { recursive: true });
     writeFileSync(source, "// cli");
-    assert.equal(await stableEntry(source, app), realpathSync(source));
+    assert.equal(await stableEntry(source, app), realpathSync.native(source));
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
