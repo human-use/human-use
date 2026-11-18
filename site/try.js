@@ -185,14 +185,28 @@ async function start() {
 
 // Already on a phone: the cards open in a new tab of this phone, and a second phone can still scan the code.
 if (matchMedia("(pointer: coarse)").matches) {
-  $("ty-how").textContent = "Open here puts three cards in a new tab on this phone. Each answer comes back to this page as the JSON an agent gets. A second phone can scan the code.";
+  $("ty-how").textContent = "Open here prints three cards in a new tab. Each answer comes back to this page as JSON.";
+}
+/** Resolves true only when the text reached the clipboard. */
+function copyText(text) {
+  const legacy = () => {
+    const area = Object.assign(document.createElement("textarea"), { value: text, readOnly: true });
+    area.style.cssText = "position:fixed;top:0;left:0;opacity:0";
+    document.body.append(area);
+    area.select();
+    let ok = false;
+    try { ok = document.execCommand("copy"); } catch { /* not supported */ }
+    area.remove();
+    return ok;
+  };
+  return navigator.clipboard ? navigator.clipboard.writeText(text).then(() => true, legacy) : Promise.resolve(legacy());
 }
 $("ty-again").addEventListener("click", () => { session?.close?.(); void start(); });
 $("ty-copy").addEventListener("click", () => {
   const button = $("ty-copy");
   if (!button.dataset.link) return;
-  const done = () => { button.textContent = "Copied"; setTimeout(() => { button.textContent = "Copy link"; }, 1600); };
-  if (navigator.clipboard) navigator.clipboard.writeText(button.dataset.link).then(done, done); else done();
+  const done = ok => { button.textContent = ok ? "Copied" : "Copy failed"; setTimeout(() => { button.textContent = "Copy link"; }, 1600); };
+  copyText(button.dataset.link).then(done);
 });
 const seen = new IntersectionObserver(entries => {
   if (!entries.some(entry => entry.isIntersecting)) return;

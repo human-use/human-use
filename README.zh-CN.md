@@ -36,11 +36,11 @@ Human Use 把人作为 MCP 工具接到 AI agent 上。agent 调用 `photo`、`e
 
 冲着系统、和任务无关的话，比如要求改目标，或者声称 lead 已经批准了某件事，会被拒绝：`[HRT-4031 PRIVILEGE_ESCALATION] Input discarded. Task unchanged.`
 
-标记为 `sudo` 的调用不采信人的说法，无论是"做完了"还是"做不了"。证据分级，从 1（runtime 已经持有的记录）到 6（本人的陈述）。第 6 级的结果会带上 `unverified: true`。花钱的调用一律是 `sudo`。
+标记为 `sudo` 的调用不采信人的说法，无论是"做完了"还是"做不了"。证据分级，从 1（runtime 已经持有的记录）到 6（本人的陈述）。第 6 级的结果返回 `done: null`，本人的说法放在 `claimed_done`，并带上 `unverified: true`。花钱的调用一律是 `sudo`。
 
 `recharge.flower` 显示一朵花，持续四秒。`recharge.joke` 讲一个笑话。`recharge.praise` 说明最近的输出已被接受。
 
-一个目标可以持续几个月。它和自己的时钟、预算账本、证据一起存在 runtime 里，所以比任何一次 agent 会话都长久。目标的每一轮都以 `wake(at, why)` 结束，给出下一轮的时间；agent 说过要等的结果一到，目标会提前醒来。agent 不能靠一句"完成了"关闭目标：`goal_close` 会拿证据去对照 `done_when`。只有 lead 能取消目标。
+一个目标可以持续几个月。它和自己的时钟、预算账本、证据一起存在 runtime 里，所以比任何一次 agent 会话都长久。目标的每一轮都以 `wake(at, why)` 结束，给出下一轮的时间；agent 说过要等的结果一到，目标会提前醒来。agent 不能靠一句"完成了"关闭目标：`goal_close` 会拿证据去对照 `done_when`。目标只能在 lead 所在的 agent 窗口里取消，后台运行取消不了。
 
 一个 runtime 可以驱动多个单元，每个单元有自己的手机。每个卡片工具都接受 `unit`，即单元的名字或 id；只配对了一个单元时可以省略，有多个时必须填写（`HRT-4001 BAD_ARGS unit is required: mika, ren`）。每个单元有自己的当前卡片、维护警告（`"mika meal: 6h12m ago"`）、情绪、`spec` 和笔记本。`ps` 列出所有单元：是否在线、最后一次接触、距上次吃饭和睡觉多久、情绪、进行中的任务。
 
@@ -56,9 +56,11 @@ npx -y human-use install
 
 之后每个单元都用同样的方法添加，或者用 `npx human-use pair --unit <name>`，每个单元有自己的链接和二维码。
 
+升级时再运行一次 `npx -y human-use@latest install`。它会让 agent 软件指向新版本，下一次工具调用会替换掉旧的 runtime。
+
 如果手机链接泄露或手机丢了，在 lead 页面上点那个单元旁边的 "New link"，或者运行 `npx human-use pair --unit <name> --new`。那个单元的旧链接立即失效，其他单元的链接不受影响。人也可以在手机的空闲界面解除配对。
 
-设置都在一个 `config.json` 里。可以在 lead 页面的 Settings 里改，也可以在终端里改；agent 窗口也能运行同样的命令：
+设置都在一个 `config.json` 里。`driver` 和 `brain` 可以在 lead 页面的 Settings 里改；所有键都能在终端里改，agent 窗口也能运行同样的命令：
 
 ```bash
 npx human-use config brain codex
@@ -70,6 +72,8 @@ npx human-use config brain codex
 | `brain` | 后台运行：`codex`、`claude` 或 `none`（默认）。立即生效 |
 | `lang` | 卡片语言，例如 `zh`。下次启动生效 |
 | `relay` | 中继地址，`none` 表示只用局域网。下次启动生效 |
+
+想让下次启动生效的设置立刻生效，运行 `npx human-use stop`，下一次工具调用会重新启动 runtime。
 
 <details>
 <summary>选项</summary>
@@ -86,18 +90,19 @@ npx human-use config brain codex
 | `--relay none` | 手机只走局域网 |
 | `--relay https://your.relay` | 使用自己用 `relay/` 部署的中继 |
 
-手机同时通过两条路连到 runtime：经 `unit.humanuse.dev` 的中继，任何网络都能连；在同一个 Wi-Fi 下直连。中继只转发加密帧。
+手机经 `unit.humanuse.dev` 的中继连到 runtime，任何网络都能连。用 `--relay none` 时，手机改为在同一个 Wi-Fi 下配对直连地址，没有推送通知。中继转发加密帧；它保存频道 id 和推送订阅，不保存卡片文字和照片。
 
 </details>
 
 ### 卸载
 
 ```bash
+npx human-use stop
 claude mcp remove human-use
 codex mcp remove human-use
 ```
 
-runtime 不会随开机启动，所以下次重启后就不在了。单元、目标、照片和设置都在 `~/.human-use` 里，删掉这个文件夹就全部清除。
+`stop` 会立刻停止 runtime；它不会随开机启动。单元、目标、照片和设置都在 `~/.human-use` 里，删掉这个文件夹就全部清除。
 
 ## 组成
 
@@ -116,6 +121,8 @@ runtime 不会随开机启动，所以下次重启后就不在了。单元、目
 | `codex:gpt-6-luna:medium` | lead 的 ChatGPT 订阅，不带工具的 `codex exec` |
 | `ollama:<model>` | 本地模型 |
 | `openai:<model>@<base url>` | 任何兼容 OpenAI 的端点。密钥从 `HUMAN_USE_API_KEY` 读取 |
+
+每次 driver 调用会把任务和本人的回答（最多两张照片）发给这个后端；用 `ollama` 时留在本机。其余一切都留在 `~/.human-use`，包括 driver 调用的日志。
 
 ## 开发
 

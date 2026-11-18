@@ -1,12 +1,19 @@
 {
   "name": "human-use",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "mcpName": "dev.humanuse/human-use",
   "description": "A device driver for a person. An MCP server: the agent calls a tool, a card prints on a person's phone, and the agent gets JSON back.",
   "license": "MIT",
   "type": "module",
   "homepage": "https://humanuse.dev",
-  "keywords": ["mcp", "mcp-server", "agent", "claude-code", "codex", "human-in-the-loop"],
+  "keywords": [
+    "mcp",
+    "mcp-server",
+    "agent",
+    "claude-code",
+    "codex",
+    "human-in-the-loop"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/human-use/human-use.git"

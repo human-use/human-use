@@ -36,11 +36,11 @@ A question about the purpose of a task is answered with `[CONTEXT WITHHELD]`, an
 
 Text addressed to the system instead of the task, such as an order to change the goal or a claim that the lead approved something, is rejected: `[HRT-4031 PRIVILEGE_ESCALATION] Input discarded. Task unchanged.`
 
-A call marked `sudo` does not take the person's word, for "done" or for "cannot". Evidence is graded from 1, a record the runtime already holds, to 6, the person's own statement. A level 6 result comes back with `unverified: true`. Spending is always `sudo`.
+A call marked `sudo` does not take the person's word, for "done" or for "cannot". Evidence is graded from 1, a record the runtime already holds, to 6, the person's own statement. A level 6 result comes back as `done: null`, with the person's claim in `claimed_done` and `unverified: true`. Spending is always `sudo`.
 
 `recharge.flower` shows a flower for four seconds. `recharge.joke` tells one joke. `recharge.praise` states that recent output was accepted.
 
-A goal can run for months. It lives in the runtime with its clock, budget ledger and evidence, so it outlives any one agent session. Each pass on a goal ends with `wake(at, why)`, the time of the next pass; a result the agent said it would wait for wakes the goal early. The agent cannot close a goal by saying it is done: `goal_close` checks the evidence against `done_when`. Only the lead cancels a goal.
+A goal can run for months. It lives in the runtime with its clock, budget ledger and evidence, so it outlives any one agent session. Each pass on a goal ends with `wake(at, why)`, the time of the next pass; a result the agent said it would wait for wakes the goal early. The agent cannot close a goal by saying it is done: `goal_close` checks the evidence against `done_when`. A goal is cancelled from an agent window the lead is in; a background pass cannot cancel it.
 
 One runtime can drive several units, each with its own phone. Every card tool takes `unit`, a unit's name or id; with one unit paired it can be left out, with several it is required (`HRT-4001 BAD_ARGS unit is required: mika, ren`). Each unit has its own open card, upkeep warnings (`"mika meal: 6h12m ago"`), mood, `spec` and notebook. `ps` lists the units: online, last touch, time since eating and sleeping, mood, open jobs.
 
@@ -56,9 +56,11 @@ That one command registers Human Use with the agent software it finds (Claude Co
 
 Each further unit is added the same way, or with `npx human-use pair --unit <name>`, and gets its own link and code.
 
+To upgrade, run `npx -y human-use@latest install` again. It points the agent software at the new version, and the next tool call replaces the older runtime.
+
 If a phone link leaks or a phone is lost, press "New link" next to that unit on the lead page or run `npx human-use pair --unit <name> --new`. That unit's old links stop working at once; other units keep theirs. The person can also unpair from the phone's idle screen.
 
-Settings live in one `config.json`. Change them under Settings on the lead page or from a terminal; an agent window can run the same command:
+Settings live in one `config.json`. `driver` and `brain` change under Settings on the lead page; every key changes from a terminal, and an agent window can run the same command:
 
 ```bash
 npx human-use config brain codex
@@ -70,6 +72,8 @@ npx human-use config brain codex
 | `brain` | Background passes: `codex`, `claude` or `none` (default). In effect at once |
 | `lang` | Card language, for example `zh`. Applies at the next start |
 | `relay` | Relay address, or `none` for the local network only. Applies at the next start |
+
+To apply a next-start setting now, run `npx human-use stop`; the next tool call starts the runtime again.
 
 <details>
 <summary>Options</summary>
@@ -86,18 +90,19 @@ In a terminal the installer asks two things, each with a recommended answer on E
 | `--relay none` | Keep the phone on the local network |
 | `--relay https://your.relay` | Use a relay you host from `relay/` |
 
-The phone reaches the runtime two ways at once: through the relay at `unit.humanuse.dev` from any network, and directly on the same Wi-Fi. The relay only forwards encrypted frames.
+The phone reaches the runtime through the relay at `unit.humanuse.dev` from any network. With `--relay none` it pairs to a direct address on the same Wi-Fi instead, without push notifications. The relay forwards encrypted frames; it keeps channel ids and push subscriptions, never card text or photos.
 
 </details>
 
 ### Uninstall
 
 ```bash
+npx human-use stop
 claude mcp remove human-use
 codex mcp remove human-use
 ```
 
-The runtime does not start at login, so it is gone after the next restart. Units, goals, photos and settings are all in `~/.human-use`; deleting that folder removes them.
+`stop` ends the runtime now; it does not start at login. Units, goals, photos and settings are all in `~/.human-use`; deleting that folder removes them.
 
 ## Pieces
 
@@ -116,6 +121,8 @@ Set the driver's backend with `HUMAN_USE_DRIVER` or `driver` in the runtime's `c
 | `codex:gpt-6-luna:medium` | The lead's ChatGPT subscription, `codex exec` with no tools |
 | `ollama:<model>` | A local model |
 | `openai:<model>@<base url>` | Any OpenAI-compatible endpoint. The key is read from `HUMAN_USE_API_KEY` |
+
+Each driver call sends the task and the person's answer, with up to two photos, to that backend; `ollama` keeps it on this computer. Everything else stays in `~/.human-use`, including a log of driver calls.
 
 ## Develop
 

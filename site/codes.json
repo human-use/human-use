@@ -136,7 +136,7 @@
       "arrives": "error, result",
       "when": "As an error: the job or goal has moved on (already settled, closed or cancelled). In a result: the unit gave a reason it could not do the task, the driver did not believe it, and checking did not settle it.",
       "agent": "Error: read the current state with `ps` or `goal_get`. Result: the task is not done and the reason is doubtful. Check it another way, send the task again, or give up on it.",
-      "example": "{\"done\": false, \"blocker\": \"no one home\", \"code\": \"HRT-4009\", \"evidence_level\": 6, \"unverified\": true}",
+      "example": "{\"done\": false, \"blocker\": \"no one home\", \"code\": \"HRT-4009\"}",
       "since": "0.1.0"
     },
     {

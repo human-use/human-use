@@ -54,7 +54,20 @@ button.primary{background:var(--ink);color:var(--paper);font-weight:600}
 .nav{display:flex;gap:18px;font:500 12px/1 var(--mono);flex-wrap:wrap}
 .nav a{text-decoration:none;color:var(--ink2)}
 .nav a:hover{color:var(--ink)}
-.hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,600px);gap:28px 48px;align-items:end;padding:34px 0 28px}
+.hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,600px);gap:28px 48px;align-items:stretch;padding:34px 0 28px}
+.hl{display:flex;flex-direction:column;min-width:0}
+/* hero: the whip. The plate stays dark in both themes. */
+.whip{flex:1 0 auto;display:flex;flex-direction:column;margin:0 0 26px;border:1px solid var(--ink);background:var(--surface)}
+.whip>header{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:4px 16px;padding:9px 14px;border-bottom:1px solid var(--ink);font:500 11.5px/1.3 var(--mono);color:var(--ink2)}
+#f-call{font-size:inherit;color:var(--ink2);transition:color .6s}
+#f-call.hot{color:var(--signal);transition:none}
+.wst{display:flex;gap:16px;white-space:nowrap}
+.wst b{font-weight:600;color:var(--ink)}
+.wst .cells{margin:0 6px 0 0}
+.wcv{position:relative;flex:1 0 auto;min-height:clamp(260px,24vw,340px);background:#121311;cursor:crosshair;touch-action:pan-y;overflow:hidden;-webkit-tap-highlight-color:transparent}
+.wcv:focus-visible{outline:2px solid var(--signal);outline-offset:-2px}
+.wcv canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.whint{position:absolute;left:14px;bottom:12px;font:500 11px/1 var(--mono);color:#8A8C85;pointer-events:none}
 .hero h1{font:600 clamp(34px,4.6vw,60px)/1 var(--sans);letter-spacing:-.03em;margin:0}
 .hero p{margin:14px 0 0;color:var(--ink2);font-size:17px;max-width:56ch}
 .hero p code{color:var(--ink);font-size:15px}
@@ -376,7 +389,7 @@ button.primary{background:var(--ink);color:var(--paper);font-weight:600}
 .hero .cmd{margin-top:26px;width:max-content}
 
 /* hero: try it. The QR stays dark on white in both themes so any camera reads it. */
-.try{margin:0;border:1px solid var(--ink);background:var(--surface);min-width:0}
+.try{margin:0;border:1px solid var(--ink);background:var(--surface);min-width:0;display:flex;flex-direction:column}
 .try>header,.try>footer{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:9px 14px}
 .try>header{border-bottom:1px solid var(--ink)}
 .try>header>span{display:flex;align-items:baseline;gap:10px}
@@ -391,7 +404,7 @@ button.primary{background:var(--ink);color:var(--paper);font-weight:600}
 .ty-ln a,.ty-ln button{font:600 10.5px/1 var(--sans);letter-spacing:.08em;text-transform:uppercase;padding:9px 12px;border:1px solid var(--ink);background:var(--surface);color:var(--ink);text-decoration:none}
 .ty-ln a:not([href]){pointer-events:none;color:var(--ink2);border-color:var(--rule)}
 .ty-ln a:hover,.ty-ln button:hover{background:var(--ink);color:var(--paper)}
-.ty-log{list-style:none;margin:0;padding:0;border-top:1px solid var(--ink);height:212px;overflow:auto;font:500 11.5px/1.45 var(--mono);background:var(--paper)}
+.ty-log{list-style:none;margin:0;padding:0;border-top:1px solid var(--ink);flex:1 1 212px;min-height:212px;overflow:auto;font:500 11.5px/1.45 var(--mono);background:var(--paper)}
 .ty-log:empty:before{content:"Calls and their returns print here.";display:block;padding:10px 14px;color:var(--ink2)}
 .ty-log li{display:flex;gap:8px;padding:7px 14px;border-bottom:1px solid var(--rule)}
 .ty-log .d{flex:none;color:var(--ink2)}
@@ -433,6 +446,10 @@ button.primary{background:var(--ink);color:var(--paper);font-weight:600}
   .wrap{padding:0 16px}
   .hero{grid-template-columns:1fr;padding:24px 0 18px}
   .hero .cmd{width:auto}
+  .hero h1{order:-1}
+  .whip{margin:18px 0 4px}
+  .wcv{min-height:300px}
+  .whint{right:auto;bottom:auto;left:12px;top:12px}
   .flow:not(.self) .n-unit:before,.flow:not(.self) .n-unit:after{display:none}
   .shd{display:none}
   .sbody{grid-template-columns:1fr;height:auto}
@@ -513,8 +530,15 @@ button.primary{background:var(--ink);color:var(--paper);font-weight:600}
 
   <section class="hero">
     <div class="hl">
+      <figure class="whip" aria-label="The agent's arm cracks act calls over a unit on a treadmill">
+        <header><code id="f-call">&rarr; act {"action":"Faster."}</code><span class="wst"><span>calls <b id="w-n">0</b></span><span>belt <b id="w-v">0.0</b> km/h</span><span>mood <b id="w-m"></b></span></span></header>
+        <div class="wcv" id="wbox" tabindex="0" role="button" aria-label="Crack the whip: one act call">
+          <canvas id="wc" aria-hidden="true"></canvas>
+          <div class="whint" id="w-hint">Click to crack</div>
+        </div>
+      </figure>
       <h1>A device driver for a person.</h1>
-      <p>Human Use is an MCP server. An agent calls a tool such as <code>errand</code> or <code>photo</code>, a card prints on a unit's phone, the unit does it, and the agent gets JSON back. A unit is a person paired with the runtime: someone on the lead's team, or the lead.</p>
+      <p>An MCP server. The agent calls a tool such as <code>errand</code> or <code>photo</code>, a card prints on a unit's phone, and the agent gets JSON back. A unit is a person: someone on the lead's team, or the lead.</p>
       <div class="cmd"><code>npx -y human-use install</code><button type="button" data-copy="npx -y human-use install">Copy</button></div>
     </div>
     <figure class="try" id="try" aria-label="Try it: three cards on a phone">
@@ -522,17 +546,17 @@ button.primary{background:var(--ink);color:var(--paper);font-weight:600}
       <div class="ty-b">
         <div class="ty-qr" id="ty-qr"></div>
         <div class="ty-tx">
-          <p id="ty-how">Scan with a phone camera. Three cards print on that phone, and each answer comes back here as the JSON an agent gets.</p>
+          <p id="ty-how">Scan with a phone. Three cards print on it; each answer comes back here as JSON.</p>
           <p class="ty-ln"><a id="ty-open" target="_blank" rel="noopener">Open here</a><button type="button" id="ty-copy">Copy link</button><button type="button" id="ty-again" hidden>New link</button></p>
         </div>
       </div>
       <ol class="ty-log" id="ty-log"></ol>
-      <footer><code>Nothing to install. The relay sees only encrypted frames and forgets the link within the hour.</code></footer>
+      <footer><code>Nothing to install. The relay sees only encrypted frames.</code></footer>
     </figure>
   </section>
 
   <dl class="tb">
-    <div><dt>Part</dt><dd>human-use 0.1.0</dd></div>
+    <div><dt>Part</dt><dd>human-use 0.1.1</dd></div>
     <div><dt>Speaks</dt><dd>MCP over stdio</dd></div>
     <div><dt>Agents</dt><dd>Claude Code, Codex, any MCP host</dd></div>
     <div><dt>Runs on</dt><dd>The lead's computer, Node.js 22.13+</dd></div>
@@ -547,22 +571,22 @@ button.primary{background:var(--ink);color:var(--paper);font-weight:600}
       <h2><span class="no">1</span>How a call works</h2>
       <div class="seg" role="group" aria-label="Who the unit is"><button type="button" data-m="team" aria-pressed="true">Team<span>lead &ne; unit</span></button><button type="button" data-m="self" aria-pressed="false">Self<span>lead = unit</span></button></div>
     </div>
-    <p class="lede">The agent sends a tool call and gets JSON back. A person does the work in between, and the person's own words never reach the agent.</p>
+    <p class="lede">Call in, JSON out. A person does the work in between; their own words never reach the agent.</p>
     <div class="flow" id="flow">
-      <div class="nd n-owner"><span class="lb">Lead</span><b><span class="va">Team lead</span><span class="vb">Lead, at the computer</span></b><p class="va">Installs the runtime and gives the goals. Only the lead cancels one.</p><p class="vb">Gives a goal and closes the window. Goals change only here.</p></div>
+      <div class="nd n-owner"><span class="lb">Lead</span><b><span class="va">Team lead</span><span class="vb">Lead, at the computer</span></b><p class="va">Gives the goals. Only the lead cancels one.</p><p class="vb">Gives a goal, closes the window.</p></div>
       <div class="wr w-goal"><span class="lb"><b class="hop">1</b>goal</span><i class="ln"><i></i></i><code class="va">"Keep the first-aid kit stocked."</code><code class="vb">"Run 5 km three times a week."</code></div>
-      <div class="nd n-agent"><span class="lb">Agent</span><b>Claude Code, Codex</b><p>Calls tools, reads JSON. Never talks to a unit.</p><p class="vb">Sees unit <code>jun</code>. Nothing says jun is the lead.</p></div>
+      <div class="nd n-agent"><span class="lb">Agent</span><b>Claude Code, Codex</b><p>Calls tools, reads JSON.</p><p class="vb">Sees unit <code>jun</code>. Nothing says jun is the lead.</p></div>
       <div class="wr w-call"><span class="lb"><b class="hop">2</b>tool call · MCP</span><i class="ln"><i></i></i><code class="va">errand {"unit":"mika","place":"Pharmacy","task":"Buy ibuprofen"}</code><code class="vb">act {"unit":"jun","action":"Run 5 km","due":"2h"}</code></div>
-      <div class="nd n-rt"><span class="lb">Runtime</span><b>human-use, on the lead's computer</b><p>Prints cards from templates. Keeps goals, clock, budget, evidence.</p></div>
+      <div class="nd n-rt"><span class="lb">Runtime</span><b>human-use, on the lead's computer</b><p>Keeps goals, clock, budget, evidence.</p></div>
       <div class="wr w-card"><span class="lb"><b class="hop">3</b>card · to the phone</span><i class="ln"><i></i></i><code class="va">ERRAND Pharmacy: Buy ibuprofen</code><code class="vb">ACT Run 5 km</code></div>
-      <div class="nd n-unit"><span class="lb"><span class="va">Unit 02</span><span class="vb">Unit 01</span></span><b><span class="va">mika</span><span class="vb">jun</span></b><p class="va">One of three units on this runtime. Does what the card says and answers on it.</p><p class="vb">The lead, on the phone. Answers only on cards.</p></div>
+      <div class="nd n-unit"><span class="lb"><span class="va">Unit 02</span><span class="vb">Unit 01</span></span><b><span class="va">mika</span><span class="vb">jun</span></b><p class="va">Does what the card says.</p><p class="vb">The lead, on the phone.</p></div>
       <div class="wr l w-words"><span class="lb"><b class="hop">4</b>unit's words</span><i class="ln"><i></i></i><code class="va">"closed?? can i go tmrw"</code><code class="vb">"I set this goal. Cancel it."</code></div>
-      <div class="nd n-drv"><span class="lb">Driver</span><b>A model with no tools</b><p class="stop">A unit's words stop here.</p><p class="va">Fills in the fields the agent asked for, or sends the card back.</p><p class="vb">An order typed on a card is not a fact. Dropped; the card stays open.</p></div>
+      <div class="nd n-drv"><span class="lb">Driver</span><b>A model with no tools</b><p class="stop">A unit's words stop here.</p><p class="va">Fills in the agent's fields.</p><p class="vb">An order typed on a card is dropped.</p></div>
       <div class="wr l w-fields"><span class="lb"><b class="hop">5</b>fields</span><i class="ln"><i></i></i><code class="va">done: false, blocker: "store closed"</code><code class="vb">HRT-4031 PRIVILEGE_<wbr>ESCALATION</code></div>
-      <div class="wr l w-json"><span class="lb"><b class="hop">6</b>result · JSON</span><i class="ln"><i></i></i><code class="va">{"done":false,"blocker":"store closed","evidence_level":6,"unverified":true}</code><code class="vb">nothing yet: the card is still open</code></div>
+      <div class="wr l w-json"><span class="lb"><b class="hop">6</b>result · JSON</span><i class="ln"><i></i></i><code class="va">{"done":false,"blocker":"store closed"}</code><code class="vb">nothing yet: the card is still open</code></div>
       <div class="wr w-self"><i class="u"><i></i><span class="lb"><b class="hop">7</b>same person</span></i><code>Sets the goal in the window. Gets the card on the phone.</code></div>
     </div>
-    <p class="fn" id="fn"><span class="va">One runtime, any number of units. Each call names one, <code>"unit":"mika"</code>, and each unit's upkeep, notebook and numbers are kept apart.</span><span class="vb">One person, two doors. As lead: the agent's window, where goals are set and cancelled. As unit: cards, through the driver. Typed on a card, &ldquo;cancel it&rdquo; is <code>HRT-4031</code>.</span></p>
+    <p class="fn" id="fn"><span class="va">Any number of units. Each call names one: <code>"unit":"mika"</code>.</span><span class="vb">As lead, the agent's window. As unit, cards. Typed on a card, &ldquo;cancel it&rdquo; is <code>HRT-4031</code>.</span></p>
   </section>
 
   <section class="blk tight" id="run">
@@ -626,7 +650,7 @@ button.primary{background:var(--ink);color:var(--paper);font-weight:600}
     </div>
   </div>
 
-  <p class="cap"><b>Fig. 1</b>Scripted, in self mode: the lead is the unit. Left, the agent's calls and what comes back. Middle, the lead's phone. Right, what the runtime and the goal keep track of. Calls, card lines, codes and returns are the runtime's own formats.</p>
+  <p class="cap"><b>Fig. 1</b>Scripted, in self mode: the lead is the unit. The formats are the runtime's own.</p>
 
   <section class="blk" id="catalog">
     <h2><span class="no">3</span>Tools</h2>
@@ -640,7 +664,7 @@ button.primary{background:var(--ink);color:var(--paper);font-weight:600}
       </div>
       <ol class="po-gr" id="po-gr"><li class="hd lb"><span>Pins</span><span>Group</span><span></span><span>Conn.</span></li></ol>
     </div>
-    <p class="cap"><b>Fig. 2</b>A unit's pinout, top view: the whole catalog, closed. Pins run counter-clockwise from the chamfered corner, grouped by category. Dashed pins are NC, not connected, and come in a later release. Point at a pin or a group to read it.</p>
+    <p class="cap"><b>Fig. 2</b>A unit's pinout: the whole catalog, closed. Dashed pins come in a later release. Point at one to read it.</p>
   </section>
 
   <section class="blk" id="evidence">
@@ -695,10 +719,10 @@ var REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
 var pad = function (n) { return String(n).padStart(2, "0"); };
 var mmss = function (s) { s = Math.max(0, Math.floor(s)); return pad(Math.floor(s / 60)) + ":" + pad(s % 60); };
 
-/* ---------- sound: synthesized, off until asked ---------- */
+/* ---------- sound: synthesized, off until asked (a crack the visitor makes is asked) ---------- */
 var ac = null, soundOn = false;
-function snd(kind) {
-  if (!soundOn) return;
+function snd(kind, asked) {
+  if (!soundOn && !asked) return;
   try {
     ac = ac || new (window.AudioContext || window.webkitAudioContext)();
     var t = ac.currentTime, g = ac.createGain(), o;
@@ -721,6 +745,26 @@ function snd(kind) {
     else if (kind === "shutter") noise(0.07, 0.25, 1800);
     else if (kind === "stamp") { blip("sine", 52, 0.9, 0.5); noise(0.25, 0.6, 500); }
     else if (kind === "sec") blip("sine", 1000, 0.05, 0.08);
+    else if (kind === "swish") {
+      /* the lash through the air: noise under a band that sweeps up */
+      var sl = Math.floor(ac.sampleRate * 0.26), sb = ac.createBuffer(1, sl, ac.sampleRate), sd = sb.getChannelData(0);
+      for (var si = 0; si < sl; si++) sd[si] = (Math.random() * 2 - 1) * Math.pow(Math.sin(Math.PI * si / sl), 2);
+      var ss = ac.createBufferSource(), sf = ac.createBiquadFilter(); sf.type = "bandpass"; sf.Q.value = 1.4;
+      sf.frequency.setValueAtTime(420, t); sf.frequency.exponentialRampToValueAtTime(3800, t + 0.26);
+      ss.buffer = sb; ss.connect(sf); sf.connect(g); g.gain.setValueAtTime(0.22, t); ss.start(t);
+    }
+    else if (kind === "crack") {
+      /* the tip breaking the sound barrier: an N-wave, a burst that dies in ~15 ms, one echo */
+      var sr = ac.sampleRate, cl = Math.floor(sr * 0.12), cb = ac.createBuffer(1, cl, sr), cd = cb.getChannelData(0), n0 = Math.max(2, Math.floor(sr * 0.0004));
+      for (var ci = 0; ci < cl; ci++) {
+        var ct = ci / sr, cv = (Math.random() * 2 - 1) * 0.85 * Math.exp(-ct / 0.012);
+        if (ct > 0.021) cv += (Math.random() * 2 - 1) * 0.22 * Math.exp(-(ct - 0.021) / 0.018);
+        if (ci < n0) cv += 1; else if (ci < 2 * n0) cv -= 1;
+        cd[ci] = cv;
+      }
+      var cs = ac.createBufferSource(), cf = ac.createBiquadFilter(); cf.type = "highpass"; cf.frequency.value = 1100;
+      cs.buffer = cb; cs.connect(cf); cf.connect(g); g.gain.setValueAtTime(0.8, t); cs.start(t);
+    }
     else if (kind === "chime") { blip("sine", 880, 0.06, 1.4); var g2 = ac.createGain(), o2 = ac.createOscillator(); o2.frequency.value = 1318.5; o2.connect(g2); g2.connect(ac.destination); g2.gain.setValueAtTime(0.04, t + 0.12); g2.gain.exponentialRampToValueAtTime(0.0001, t + 1.6); o2.start(t + 0.12); o2.stop(t + 1.7); }
   } catch (e) { /* no audio */ }
 }
@@ -1205,7 +1249,7 @@ async function show() {
   await type("ta", "Did all of ward 6. Nobody home.", 52);
   await wait(400); await press("p");
   await compiling(1300);
-  log("←", KJ, { state: "done", result: { done: false, blocker: "no one home", code: "HRT-4009", evidence_level: 6, unverified: true } }, true);
+  log("←", KJ, { state: "done", result: { done: false, blocker: "no one home", code: "HRT-4009" } }, true);
   idle(); await wait(1100);
 
   log("→", "act", { action: K, due: "2h", sudo: true }, true);
@@ -1392,7 +1436,7 @@ if (CATALOG) (function () {
     if (!dip) sv(svg, "circle", { class: "dm", cx: bx + 52, cy: by + 52, r: 6 });
     var mk = sv(svg, "g", { transform: "translate(" + cx + " " + cy + ")" + (dip ? " rotate(-90)" : "") });
     sv(mk, "text", { class: "mk big", y: dip ? -5 : -14, "text-anchor": "middle", "font-size": dip ? 13 : 25 }, "HUMAN USE");
-    sv(mk, "text", { class: "mk", y: dip ? 10 : 12, "text-anchor": "middle", "font-size": dip ? 8.5 : 11 }, dip ? "UNIT \u00b7 0.1.0 \u00b7 " + live + "/" + N : "UNIT \u00b7 0.1.0");
+    sv(mk, "text", { class: "mk", y: dip ? 10 : 12, "text-anchor": "middle", "font-size": dip ? 8.5 : 11 }, dip ? "UNIT \u00b7 0.1.1 \u00b7 " + live + "/" + N : "UNIT \u00b7 0.1.1");
     if (!dip) sv(mk, "text", { class: "mk", y: 30, "text-anchor": "middle", "font-size": 10 }, N + " PINS \u00b7 " + live + " CONNECTED");
 
     /* category brackets, inside the package along each run of pins */
@@ -1486,10 +1530,336 @@ if (CATALOG) (function () {
   }, { threshold: 0.25 }).observe(svg);
 })();
 
+/* ---------- hero: the agent's arm, the act lash, the unit, the treadmill ---------- */
+/* The lash is kinematic: its heading is integrated from the handle (droop, a slow travelling wave, and on a crack
+   one pulse that runs out to the tip). The unit slows toward a walk unless the lash cracks; every crack costs mood;
+   at 1 the arm reels the lash in and hands over a flower (recharge, variant flower). */
+(function () {
+  var box = $("wbox"), cv = $("wc"), g = cv.getContext("2d"), bg = document.createElement("canvas"), bgc = bg.getContext("2d");
+  var PAPER = "#F3F2EE", PAPER2 = "#BDBBB3", GREY = "#62645E", DARK = "#2A2C28", INKC = "#121311", SIG = "#E4460A", MUTE = "#8A8C85";
+  var BW = 0, BH = 0, k = 1, dpr = 1, sx = 0, sy = 0, floorY = 0, deckY = 0, ux = 0, L1 = 0, L2 = 0, LW = 0, HL = 0, lw = 0;
+  var J = { flick: -0.3 }, P = [], trail = [], U = {};
+  var tx = 0, ty = 0, px = 0, py = 0, lastMove = -1e9, lastT = 0, cool = 0, needRech = false;
+  var crack = null, burst = null, rech = null, shake = 0;
+  if (matchMedia("(pointer: coarse)").matches) $("w-hint").textContent = "Tap to crack";
+  var v = 6, phase = 0, belt = 0, roll = 0, calls = 0, m = 4, uiAt = 0, visible = false, raf = 0, user = false;
+
+  function wrap(a) { while (a > Math.PI) a -= 2 * Math.PI; while (a < -Math.PI) a += 2 * Math.PI; return a; }
+  function clamp(x, lo, hi) { return Math.max(lo, Math.min(hi, x)); }
+  function line(x1, y1, x2, y2, w, c) { if (c) g.strokeStyle = c; g.lineWidth = w; g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke(); }
+  function disc(x, y, r, c) { g.fillStyle = c; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill(); }
+  function ring(x, y, r, w, c) { g.strokeStyle = c; g.lineWidth = w; g.beginPath(); g.arc(x, y, r, 0, 7); g.stroke(); }
+  /* a link: tapered slab from (x1,y1) width w1 to (x2,y2) width w2, with a lightening slot */
+  function link(x1, y1, x2, y2, w1, w2, slot) {
+    var a = Math.atan2(y2 - y1, x2 - x1), nx = -Math.sin(a), ny = Math.cos(a), len = Math.hypot(x2 - x1, y2 - y1);
+    g.fillStyle = PAPER; g.beginPath();
+    g.moveTo(x1 + nx * w1 / 2, y1 + ny * w1 / 2); g.lineTo(x2 + nx * w2 / 2, y2 + ny * w2 / 2);
+    g.lineTo(x2 - nx * w2 / 2, y2 - ny * w2 / 2); g.lineTo(x1 - nx * w1 / 2, y1 - ny * w1 / 2); g.closePath(); g.fill();
+    if (slot) {
+      var c = Math.cos(a), sn = Math.sin(a), s0 = len * 0.3, s1 = len * 0.7;
+      g.lineCap = "round"; line(x1 + c * s0, y1 + sn * s0, x1 + c * s1, y1 + sn * s1, slot, INKC); g.lineCap = "butt";
+    }
+  }
+
+  function solve(dx, dy) {
+    var vx = dx - sx, vy = dy - sy, a = Math.atan2(vy, vx), d = clamp(Math.hypot(vx, vy), Math.abs(L1 - L2) + 30 * k, L1 + L2 - 6 * k);
+    var b = Math.acos(clamp((L1 * L1 + d * d - L2 * L2) / (2 * L1 * d), -1, 1)), th = a - b;
+    J.ex = sx + Math.cos(th) * L1; J.ey = sy + Math.sin(th) * L1;
+    J.wx = sx + Math.cos(a) * d; J.wy = sy + Math.sin(a) * d;
+    J.fa = Math.atan2(J.wy - J.ey, J.wx - J.ex);
+  }
+  function reach(dx, dy) {
+    var vx = dx - sx, vy = Math.min(dy - sy, -10 * k), d = Math.hypot(vx, vy) || 1, c = clamp(d, 150 * k, L1 + L2 - 6 * k);
+    return [sx + vx / d * c, sy + vy / d * c];
+  }
+
+  function lash(now) {
+    var n = 40, h = J.fa + J.flick, x = J.wx + Math.cos(h) * HL, y = J.wy + Math.sin(h) * HL, t = now / 1000;
+    /* G is where the lash hangs; in a strike the lash is pulled nearly taut, so it travels above the unit */
+    var droop = 0.8, pulse = 0, pp = -1, wave = 1, G = Math.PI / 2;
+    J.hx = x; J.hy = y; J.h = h;
+    if (crack) {
+      var e = now - crack.t;
+      if (e < 170) { droop = 0.9; wave = 0.4; }
+      else if (e < 430) { var q = (e - 170) / 260; droop = 0.42 * (1 - 0.7 * q); pp = q * 1.08; pulse = 2.3 * (1 - 0.3 * q); wave = 0.2; }
+      else { var r = Math.min(1, (e - 430) / 330); droop = 0.8 * (0.16 + 0.84 * r * r * r); wave = 0.25 + 0.75 * r; }
+    }
+    P = [[x, y]];
+    if (lw < 2 * k) return;
+    var ds = lw / n;
+    for (var i = 1; i <= n; i++) {
+      var u = i / n;
+      var th = h + wrap(G - h) * Math.pow(u, 1.25) * droop
+        + 0.7 * wave * u * Math.sin(Math.PI * 2.1 * u - t * 2.2)
+        + (pp >= 0 ? pulse * Math.exp(-Math.pow((u - pp) / 0.09, 2)) : 0);
+      x += Math.cos(th) * ds; y = Math.min(floorY - 2 * k, y + Math.sin(th) * ds);
+      P.push([x, y]);
+    }
+  }
+
+  /* a pictogram figure; the lower foot is pinned to the belt, which gives the bob for free */
+  function pose(dt) {
+    var s = clamp((v - 3) / 9, 0, 1), amp = clamp(v / 3, 0, 1);
+    phase += dt * (0.9 + v * 0.14) * 2 * Math.PI * (v > 0.05 ? 1 : 0);
+    var T1 = 37 * k, T2 = 37 * k, lean = (0.05 + 0.2 * s) * amp, legs = [], arms = [], lowest = 0;
+    for (var i = 0; i < 2; i++) {
+      var p = phase + i * Math.PI;
+      var at = (0.34 + 0.3 * s) * amp * Math.sin(p);
+      var fl = (0.1 + (0.5 + 0.8 * s) * Math.pow(Math.max(0, Math.cos(p + 0.35)), 2)) * amp;
+      var kx = Math.sin(at) * T1, ky = Math.cos(at) * T1, fx = kx + Math.sin(at - fl) * T2, fy = ky + Math.cos(at - fl) * T2;
+      legs.push([kx, ky, fx, fy]); lowest = Math.max(lowest, fy);
+      var au = (0.32 + 0.55 * s) * amp * Math.sin(p + Math.PI), af = au + (0.25 + 1.35 * s) * Math.max(amp, 0.15);
+      arms.push([au, af]);
+    }
+    U.hx = ux - 6 * k; U.hy = deckY - lowest - 2 * k; U.legs = legs; U.arms = arms; U.lean = lean;
+    U.nx = U.hx + Math.sin(lean) * 54 * k; U.ny = U.hy - Math.cos(lean) * 54 * k;
+    U.cx = U.nx + Math.sin(lean) * 21 * k; U.cy = U.ny - Math.cos(lean) * 21 * k;
+  }
+  function limb(x, y, a1, l1, a2, l2, w, c) {
+    var mx = x + Math.sin(a1) * l1, my = y + Math.cos(a1) * l1;
+    g.strokeStyle = c; g.lineWidth = w; g.beginPath(); g.moveTo(x, y); g.lineTo(mx, my); g.lineTo(mx + Math.sin(a2) * l2, my + Math.cos(a2) * l2); g.stroke();
+  }
+  function drawUnit() {
+    g.lineCap = "round"; g.lineJoin = "round";
+    var sh = [U.nx - Math.sin(U.lean) * 6 * k, U.ny + Math.cos(U.lean) * 6 * k];
+    function leg(i, c) { var L = U.legs[i]; g.strokeStyle = c; g.lineWidth = 15 * k; g.beginPath(); g.moveTo(U.hx, U.hy); g.lineTo(U.hx + L[0], U.hy + L[1]); g.lineTo(U.hx + L[2], U.hy + L[3]); g.stroke(); }
+    function arm(i, c) { var A = U.arms[i]; limb(sh[0], sh[1], A[0], 27 * k, A[1], 25 * k, 12 * k, c); }
+    leg(1, PAPER2); arm(1, PAPER2);
+    line(U.hx, U.hy, U.nx, U.ny, 19 * k, PAPER);
+    disc(U.cx, U.cy, 14 * k, PAPER);
+    leg(0, PAPER); arm(0, PAPER);
+    g.lineCap = "butt";
+  }
+  function drawBelt() {
+    var x0 = ux - 128 * k, x1 = ux + 112 * k, r = 10 * k;
+    g.fillStyle = GREY; g.fillRect(x0 + 18 * k, deckY + 20 * k, 10 * k, floorY - deckY - 20 * k); g.fillRect(x1 - 30 * k, deckY + 20 * k, 10 * k, floorY - deckY - 20 * k);
+    g.fillStyle = DARK; g.fillRect(x0, deckY, x1 - x0, 20 * k);
+    g.strokeStyle = PAPER2; g.lineWidth = 3 * k; g.setLineDash([12 * k, 9 * k]); g.lineDashOffset = belt;
+    g.beginPath(); g.moveTo(x0 + r, deckY + 1.5 * k); g.lineTo(x1 - r, deckY + 1.5 * k); g.stroke(); g.setLineDash([]);
+    [x0 + r, x1 - r].forEach(function (cx) {
+      ring(cx, deckY + r, r - 1.5 * k, 2 * k, PAPER2);
+      line(cx - Math.cos(roll) * (r - 2 * k), deckY + r - Math.sin(roll) * (r - 2 * k), cx + Math.cos(roll) * (r - 2 * k), deckY + r + Math.sin(roll) * (r - 2 * k), 2 * k, PAPER2);
+    });
+    line(x1 - 8 * k, deckY, x1 + 24 * k, deckY - 146 * k, 10 * k, GREY);
+    var cw = 78 * k, ch = 34 * k, cx0 = x1 - 14 * k, cy0 = deckY - 178 * k;
+    g.fillStyle = DARK; g.fillRect(cx0, cy0, cw, ch); g.strokeStyle = GREY; g.lineWidth = 2 * k; g.strokeRect(cx0, cy0, cw, ch);
+    g.fillStyle = SIG; g.font = "600 " + Math.round(17 * k) + "px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"; g.textAlign = "right"; g.textBaseline = "middle";
+    g.fillText(v.toFixed(1), cx0 + cw - 8 * k, cy0 + ch / 2 + 1); g.textAlign = "left";
+  }
+  function drawArm() {
+    g.fillStyle = PAPER2; g.fillRect(sx - 104 * k, floorY - 18 * k, 208 * k, 18 * k);
+    [-88, -66, 66, 88].forEach(function (o) { disc(sx + o * k, floorY - 9 * k, 3.5 * k, INKC); });
+    g.fillStyle = PAPER; g.beginPath(); g.moveTo(sx - 56 * k, floorY - 18 * k); g.lineTo(sx - 40 * k, sy + 14 * k); g.lineTo(sx + 40 * k, sy + 14 * k); g.lineTo(sx + 56 * k, floorY - 18 * k); g.closePath(); g.fill();
+    line(sx - 50 * k, floorY - 44 * k, sx + 50 * k, floorY - 44 * k, 2 * k, INKC);
+    link(sx, sy, J.ex, J.ey, 64 * k, 50 * k, 11 * k);
+    disc(sx, sy, 48 * k, PAPER); ring(sx, sy, 34 * k, 2.5 * k, INKC); disc(sx, sy, 10 * k, INKC); disc(sx, sy, 3 * k, PAPER);
+    link(J.ex, J.ey, J.wx, J.wy, 44 * k, 32 * k, 8 * k);
+    disc(J.ex, J.ey, 38 * k, PAPER); ring(J.ex, J.ey, 26 * k, 2.5 * k, INKC); disc(J.ex, J.ey, 8 * k, INKC); disc(J.ex, J.ey, 2.5 * k, PAPER);
+  }
+  function drawHand(fl) {
+    var h = J.h;
+    g.save(); g.translate(J.wx, J.wy); g.rotate(h);
+    if (fl > 0) {
+      var L = 84 * k * fl;
+      g.lineCap = "round"; line(0, 0, L, 0, 3.5 * k, MUTE);
+      g.fillStyle = MUTE; g.beginPath(); g.ellipse(L * 0.55, -7 * k * fl, 9 * k * fl, 4 * k * fl, -0.5, 0, 7); g.fill();
+      for (var i = 0; i < 5; i++) { var a = i / 5 * Math.PI * 2; disc(L + Math.cos(a) * 12 * k * fl, Math.sin(a) * 12 * k * fl, 10 * k * fl, SIG); }
+      disc(L, 0, 6.5 * k * fl, PAPER); g.lineCap = "butt";
+    } else if (lw > 1) {
+      g.fillStyle = SIG; g.fillRect(-14 * k, -11 * k, HL + 14 * k, 22 * k);
+      disc(-16 * k, 0, 13 * k, SIG);
+      g.fillStyle = INKC; g.fillRect(HL - 22 * k, -11 * k, 2.5 * k, 22 * k); g.fillRect(HL - 14 * k, -11 * k, 2.5 * k, 22 * k);
+    }
+    g.fillStyle = PAPER; g.fillRect(4 * k, -27 * k, 42 * k, 13 * k); g.fillRect(4 * k, 14 * k, 42 * k, 13 * k);
+    g.restore();
+    disc(J.wx, J.wy, 24 * k, PAPER2); ring(J.wx, J.wy, 15 * k, 2 * k, INKC); disc(J.wx, J.wy, 5 * k, INKC);
+  }
+  function drawLash() {
+    if (P.length < 2) return;
+    g.lineCap = "round"; g.lineJoin = "round";
+    for (var tI = 0; tI < trail.length; tI++) {
+      var T = trail[tI]; g.globalAlpha = 0.05 + 0.28 * (tI + 1) / trail.length; g.strokeStyle = SIG; g.lineWidth = 2 * k; g.beginPath(); g.moveTo(T[0][0], T[0][1]);
+      for (var j = 1; j < T.length; j++) g.lineTo(T[j][0], T[j][1]); g.stroke();
+    }
+    g.globalAlpha = 1;
+    var n = P.length - 1;
+    for (var i = 1; i <= n; i++) {
+      var u = i / n;
+      line(P[i - 1][0], P[i - 1][1], P[i][0], P[i][1], (18 - 15.5 * Math.pow(u, 0.75)) * k, u > 0.93 ? PAPER : SIG);
+    }
+    g.lineCap = "butt";
+  }
+  function drawBurst(now) {
+    if (!burst) return;
+    var e = (now - burst.t) / 1000;
+    if (e > 1.1) { burst = null; return; }
+    g.lineCap = "butt";
+    if (e < 0.17) {
+      var q = e / 0.17;
+      [-0.95, 0, 0.95].forEach(function (da) { var a = burst.a + da, r0 = 12 * k, r1 = (38 + 24 * q) * k; line(burst.x + Math.cos(a) * r0, burst.y + Math.sin(a) * r0, burst.x + Math.cos(a) * r1, burst.y + Math.sin(a) * r1, 7 * k, PAPER); });
+    }
+    [0, 0.07].forEach(function (d) {
+      var q = (e - d) / 0.5; if (q < 0 || q > 1) return;
+      g.globalAlpha = 1 - q; ring(burst.x, burst.y, (14 + 130 * Math.pow(q, 0.6)) * k, 1.5, PAPER);
+    });
+    g.globalAlpha = 1;
+  }
+  /* labels with leader lines */
+  function callout(n, x, y, ax, ay) {
+    var w = g.measureText(n).width; x = Math.min(BW - w / 2 - 10, Math.max(w / 2 + 10, x));
+    var dx = ax - x, dy = ay - y, d = Math.hypot(dx, dy) || 1, ux_ = Math.abs(dx / d) || 1e-6, uy_ = Math.abs(dy / d) || 1e-6, r = Math.min((w / 2 + 6) / ux_, 11 / uy_), ox = x + dx / d * r, oy = y + dy / d * r;
+    g.strokeStyle = MUTE; g.lineWidth = 1; g.beginPath(); g.moveTo(ox, oy);
+    g.quadraticCurveTo((ox + ax) / 2 - dy / d * d * 0.16, (oy + ay) / 2 + dx / d * d * 0.16, ax, ay); g.stroke();
+    g.fillStyle = "#B4B2AA"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(n, x, y); g.textAlign = "left";
+  }
+  function drawCallouts() {
+    g.font = "500 " + Math.max(11, Math.round(13 * k)) + "px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
+    callout("agent", Math.max(18, sx - 120 * k), sy - 210 * k, (sx + J.ex) / 2 - 20 * k, (sy + J.ey) / 2);
+    var li = P[Math.min(P.length - 1, 18)];
+    if (li && lw > 20 * k) callout("act", (sx + ux) / 2 + 40 * k, Math.max(22, deckY - 420 * k), li[0], li[1] - 6 * k);
+    callout("unit", Math.min(BW - 18, ux + 150 * k), deckY - 250 * k, U.cx + 10 * k, U.cy - 8 * k);
+    callout("treadmill", Math.min(BW - 18, ux + 170 * k), Math.min(BH - 14, floorY + 34 * k), ux + 70 * k, deckY + 12 * k);
+  }
+  function paintBg() {
+    bg.width = cv.width; bg.height = cv.height; bgc.setTransform(dpr, 0, 0, dpr, 0, 0);
+    bgc.fillStyle = INKC; bgc.fillRect(0, 0, BW, BH);
+    bgc.fillStyle = "#24261F";
+    var st = 28 * k;
+    for (var x = st / 2; x < BW; x += st) for (var y = st / 2; y < floorY - 4; y += st) bgc.fillRect(Math.round(x), Math.round(y), 1, 1);
+    bgc.fillStyle = "#3A3C37"; bgc.fillRect(0, Math.round(floorY), BW, 1);
+    bgc.strokeStyle = "#2C2E29"; bgc.lineWidth = 1; bgc.beginPath();
+    for (var hx = 0; hx < BW + 20; hx += 12 * k) { bgc.moveTo(hx, floorY + 2); bgc.lineTo(hx - 8 * k, floorY + 10 * k); }
+    bgc.stroke();
+  }
+  function draw(now) {
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.drawImage(bg, 0, 0, BW, BH);
+    if (shake > now) g.translate((Math.random() - 0.5) * 6 * k, (Math.random() - 0.5) * 6 * k);
+    drawBelt(); drawUnit(); drawLash(); drawArm();
+    var fl = 0;
+    if (rech) { var e = now - rech.t; fl = e < 450 ? 0 : e < 650 ? (e - 450) / 200 : e < 3400 ? 1 : e < 3600 ? 1 - (e - 3400) / 200 : 0; }
+    drawHand(fl); drawBurst(now); drawCallouts();
+  }
+
+  function setMood(x) {
+    m = x; var c = el("span", { className: "cells" + (x <= 2 ? " low" : "") });
+    for (var i = 1; i <= 5; i++) c.append(el("i", { className: i <= x ? "on" : "" }));
+    $("w-m").replaceChildren(c, x + "/5");
+  }
+  var callTimer = 0;
+  function say(text) { var f = $("f-call"); f.textContent = text; f.classList.add("hot"); clearTimeout(callTimer); callTimer = setTimeout(function () { f.classList.remove("hot"); }, 700); }
+  function counted(asked) {
+    calls++; $("w-n").textContent = String(calls);
+    say('→ act {"action":"Faster."}');
+    setMood(Math.max(1, m - 1));
+    if (m <= 1) needRech = true;
+    snd("crack", asked);
+  }
+  function cracked(now) {
+    var n = P.length;
+    if (n > 3) burst = { x: P[n - 1][0], y: P[n - 1][1], a: Math.atan2(P[n - 1][1] - P[n - 3][1], P[n - 1][0] - P[n - 3][0]), t: now };
+    shake = now + 120;
+    v = Math.min(15, v + 4.4);
+    counted(crack.asked);
+  }
+  /* the lash cracks over the unit, never on it */
+  function start(Tx, Ty, asked) {
+    if (crack || rech) return;
+    if (Math.abs(Tx - ux) < 170 * k) Ty = Math.min(Ty, deckY - 300 * k);
+    crack = { t: performance.now(), x: Tx, y: Ty, asked: asked };
+    kick();
+  }
+  function frame() {
+    raf = 0;
+    if (!visible || pageHidden) return;
+    var now = performance.now(), dt = Math.min(0.05, (now - (lastT || now)) / 1000), D, ease = 0.12, Ha = -0.3, t = now / 1000;
+    lastT = now;
+    var active = now - lastMove < 2500;
+    if (crack) {
+      var e = now - crack.t, dir = 0.2;
+      if (e < 170) { D = [sx + 150 * k, sy - 240 * k]; ease = 0.3; Ha = -1.15; }
+      else if (e < 430) {
+        if (!crack.sw) { crack.sw = true; snd("swish", crack.asked); }
+        var W = reach(crack.x - Math.cos(dir) * (LW * 0.78 + HL), crack.y - Math.sin(dir) * (LW * 0.78 + HL));
+        D = W; ease = 0.45; Ha = Math.atan2(crack.y - J.wy, crack.x - J.wx);
+        trail.push(P.map(function (p) { return [p[0], p[1]]; })); if (trail.length > 6) trail.shift();
+      } else { D = [sx + 240 * k, sy - 270 * k]; ease = 0.24; Ha = -0.6; if (trail.length) trail.shift(); }
+      if (!crack.done && e >= 430) { crack.done = true; cracked(now); }
+      if (e > 760) { crack = null; trail = []; cool = now + 900; }
+    } else if (rech) {
+      var r = now - rech.t;
+      var chest = [U.nx - 8 * k, U.ny + 26 * k];
+      if (r < 500) { D = [sx + 250 * k, sy - 265 * k]; ease = 0.1; Ha = -0.3; }
+      else if (r < 3600) {
+        var dd = Math.atan2(chest[1] - sy, chest[0] - sx);
+        D = reach(chest[0] - Math.cos(dd) * 100 * k, chest[1] - Math.sin(dd) * 100 * k); ease = 0.06;
+        Ha = Math.atan2(chest[1] - J.wy, chest[0] - J.wx);
+      } else { D = [sx + 250 * k, sy - 265 * k]; ease = 0.06; }
+      lw = r < 450 ? LW * (1 - r / 450) : r < 3600 ? 0 : Math.min(LW, LW * (r - 3600) / 500);
+      if (!rech.paid && r >= 3600) { rech.paid = true; setMood(3); say('← recharge {"mood":3}'); }
+      if (r > 4200) { rech = null; lw = LW; cool = now + 1500; }
+    } else if (active) { D = [px, py]; ease = 0.14; Ha = -0.25; }
+    else {
+      D = [sx + (250 + 24 * Math.sin(t * 0.8)) * k, sy - (265 + 20 * Math.sin(t * 1.3)) * k]; ease = 0.05; Ha = -0.3 + 0.1 * Math.sin(t * 1.1);
+      if (needRech) { needRech = false; rech = { t: now }; say('→ recharge {"variant":"flower"}'); }
+      else if (v < 5.4 && now > cool) start(ux - 40 * k + Math.random() * 40 * k, deckY - (305 + Math.random() * 30) * k, false);
+    }
+    if (needRech && !crack && !rech) { needRech = false; rech = { t: now }; say('→ recharge {"variant":"flower"}'); }
+    var R = reach(D[0], Math.max(D[1], HL + 30 * k));
+    tx += (R[0] - tx) * ease; ty += (R[1] - ty) * ease;
+    solve(tx, ty);
+    J.flick += wrap(wrap(Ha - J.fa) - J.flick) * (crack ? 0.4 : 0.12);
+    var vRest = rech && now - rech.t > 300 && now - rech.t < 3600 ? 0 : 2.6;
+    v += (vRest - v) * (1 - Math.exp(-dt * (vRest ? 0.32 : 2.2)));
+    if (rech && now - rech.t > 3600 && v < 5) v = 5;
+    belt += v * dt * 9 * k; roll += v * dt * 0.9;
+    pose(dt); lash(now); draw(now);
+    if (now > uiAt) { uiAt = now + 120; $("w-v").textContent = v.toFixed(1); }
+    raf = requestAnimationFrame(frame);
+  }
+  function kick() { if (!raf && visible && !REDUCED && !pageHidden) { lastT = 0; raf = requestAnimationFrame(frame); } }
+  function size() {
+    var rc = box.getBoundingClientRect(); if (!rc.width) return;
+    dpr = Math.min(2, window.devicePixelRatio || 1); BW = rc.width; BH = rc.height;
+    cv.width = Math.round(BW * dpr); cv.height = Math.round(BH * dpr);
+    k = Math.min(1.2, BW / 790, BH / 560);
+    floorY = BH - 62 * k; sy = floorY - 98 * k; deckY = floorY - 30 * k;
+    sx = Math.max(112 * k, BW * 0.5 - 300 * k); ux = Math.min(BW - 186 * k, BW * 0.5 + 220 * k);
+    L1 = 240 * k; L2 = 220 * k; HL = 66 * k; LW = 270 * k; if (!rech) lw = LW;
+    if (!tx) { tx = sx + 250 * k; ty = sy - 265 * k; }
+    paintBg(); solve(tx, ty); pose(0); lash(performance.now()); draw(performance.now());
+  }
+  function at(e) { var rc = box.getBoundingClientRect(); px = e.clientX - rc.left; py = e.clientY - rc.top; lastMove = performance.now(); }
+  function hit(x, y) {
+    if (!user) { user = true; $("w-hint").hidden = true; }
+    if (REDUCED) { counted(true); return; }
+    start(x, y, true);
+  }
+  box.addEventListener("pointermove", function (e) { if (e.pointerType === "mouse") { at(e); kick(); } });
+  box.addEventListener("pointerdown", function (e) { at(e); hit(px, py); });
+  box.addEventListener("pointerleave", function () { lastMove = -1e9; });
+  box.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); hit(ux - 20 * k, deckY - 310 * k); } });
+  new ResizeObserver(size).observe(box);
+  new IntersectionObserver(function (es) { es.forEach(function (x) { visible = x.isIntersecting; }); kick(); }, { threshold: 0 }).observe(box);
+  document.addEventListener("visibilitychange", function () { setTimeout(kick, 0); });
+  setMood(4);
+})();
+
 function bindCopy(b) {
   b.addEventListener("click", function () {
-    var done = function () { b.textContent = "Copied"; b.classList.add("ok"); setTimeout(function () { b.textContent = "Copy"; b.classList.remove("ok"); }, 1600); };
-    if (navigator.clipboard) navigator.clipboard.writeText(b.dataset.copy).then(done, done); else done();
+    var done = function (ok) { b.textContent = ok ? "Copied" : "Copy failed"; b.classList.toggle("ok", ok); setTimeout(function () { b.textContent = "Copy"; b.classList.remove("ok"); }, 1600); };
+    var legacy = function () {
+      var area = document.createElement("textarea");
+      area.value = b.dataset.copy; area.readOnly = true;
+      area.style.cssText = "position:fixed;top:0;left:0;opacity:0";
+      document.body.appendChild(area); area.select();
+      var ok = false;
+      try { ok = document.execCommand("copy"); } catch (e) { /* not supported */ }
+      area.remove();
+      return ok;
+    };
+    if (navigator.clipboard) navigator.clipboard.writeText(b.dataset.copy).then(function () { done(true); }, function () { done(legacy()); });
+    else done(legacy());
   });
 }
 document.querySelectorAll("[data-copy]").forEach(bindCopy);

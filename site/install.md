@@ -10,7 +10,7 @@ Needs Node.js 22.13 or newer.
 npx -y human-use install
 ```
 
-It registers the `human-use` MCP server with the agent software it finds (Claude Code, Codex), starts the runtime, and opens the lead page at `http://127.0.0.1:7337/`. It takes the defaults when no one is at the terminal.
+It registers the `human-use` MCP server with the agent software it finds (Claude Code, Codex), starts the runtime, and opens the lead page at `http://127.0.0.1:7337/`. It takes the defaults when no one is at the terminal. To upgrade, run `npx -y human-use@latest install` again: the host entry moves to the new version and the next tool call replaces the older runtime.
 
 | Flag | Effect |
 |---|---|
@@ -40,7 +40,7 @@ The tools load when a session starts. In the new session the server's instructio
 
 ## Settings
 
-One `config.json`. The lead changes it under Settings on the lead page, or you run:
+One `config.json`. The lead changes `driver` and `brain` under Settings on the lead page; any key changes with:
 
 ```bash
 npx human-use config <key> <value>
@@ -53,10 +53,14 @@ npx human-use config <key> <value>
 | `lang` | Card language, for example `zh`. Next start |
 | `relay` | Relay address, or `none`. Next start |
 
-Settings are the lead's. Change one when the lead asks.
+Settings are the lead's. Change one when the lead asks. A next-start setting applies after `npx human-use stop`; the next tool call starts the runtime again.
 
 ## What leaves the computer
 
-The runtime runs on this computer and keeps everything there. Phones reach it through a relay at `unit.humanuse.dev` that forwards end-to-end encrypted frames and stores nothing, or directly on the same Wi-Fi. The driver call goes to the backend the lead chose.
+The runtime runs on this computer. Units, goals, answers, photos and a log of driver calls stay in `~/.human-use`.
+
+Each driver call sends the task and the unit's answer, with up to two photos, to the backend the lead chose. With `ollama` it stays on this computer.
+
+Phones reach the runtime through the relay at `unit.humanuse.dev`, which forwards end-to-end encrypted frames. It keeps channel ids and push subscriptions, never card text or photos. With `relay` set to `none`, phones pair to a direct address on the same Wi-Fi, without push notifications.
 
 Source: https://github.com/human-use/human-use

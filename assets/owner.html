@@ -256,7 +256,7 @@ async function refreshGoals() {
         : `${pass.calls ?? 0} calls${pass.tools && pass.tools.length ? " (" + pass.tools.join(", ") + ")" : ""} · ${Math.round((pass.ms ?? 0) / 1000)}s`;
       row.append(element("p", `background pass · ${new Date(pass.at).toLocaleString()} · ${what} · woke for: ${pass.why}`));
     }
-    if (goal.budget) row.append(element("p", `budget remaining · ${goal.budget.remaining} / ${goal.budget.monthly} ${goal.budget.currency}`));
+    if (goal.budget) row.append(element("p", `budget · spent ${goal.budget.spent_this_month} · promised ${goal.budget.committed} · free ${goal.budget.remaining} of ${goal.budget.monthly} ${goal.budget.currency}`));
     if (goal.metric) row.append(element("p", `${goal.metric.name} · ${goal.metric.latest?.value ?? "—"} / ${goal.metric.expected_now ?? "—"} ${goal.metric.unit ?? ""}`));
     if (goal.status === "active") {
       const cancel = element("button", "Cancel goal");
