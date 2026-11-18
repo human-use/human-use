@@ -17,6 +17,7 @@ const HELP = `human-use ${VERSION}
                          configure the agent software and show the phone pairing; --relay none keeps the phone on Wi-Fi
   human-use open <codex|claude> [session args...]      launch a host with human-use for this invocation
   human-use serve        run the resident runtime (state, clock, phone page)
+  human-use stop         stop the resident runtime; the next tool call starts it again
   human-use mcp          run the MCP server on stdio (what agent software launches)
   human-use pair [--unit <name>] [--new]
                          print a unit's phone link and/or LAN code; a new name adds that unit; --new retires that
@@ -52,7 +53,13 @@ const base = () => `http://127.0.0.1:${port()}`;
 switch (command) {
   case "serve": {
     const { startDaemon } = await import("./daemon.js");
-    const daemon = await startDaemon();
+    let stopping = false;
+    const shutdown = () => {
+      if (stopping) return;
+      stopping = true;
+      void daemon.stop().then(() => process.exit(0), () => process.exit(1));
+    };
+    const daemon = await startDaemon({ onStopRequest: shutdown });
     console.error(`human-use ${VERSION} serving on 127.0.0.1:${port()} · db ${dbPath()}`);
     console.error(`lead page: ${base()}/`);
     const units = daemon.runtime.units();
@@ -62,7 +69,6 @@ switch (command) {
       if (lan) console.error(`${unit.name} phone page: ${lan.urls.join("  ") || "(no LAN address found)"} · pairing code ${lan.code}`);
     }
     if (daemon.units.remote) console.error("remote phone channel enabled · run human-use pair --unit <name> for a unit's link");
-    const shutdown = () => void daemon.stop().then(() => process.exit(0));
     process.on("SIGINT", shutdown);
     process.on("SIGTERM", shutdown);
     break;
@@ -245,6 +251,11 @@ switch (command) {
       console.error(error instanceof Error ? error.message : String(error));
       process.exitCode = 1;
     }
+    break;
+  }
+  case "stop": {
+    const { stopDaemon } = await import("./mcp.js");
+    console.log(await stopDaemon());
     break;
   }
   case "version":

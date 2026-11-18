@@ -46,6 +46,8 @@ export interface DaemonOptions {
   /** Replaces notification delivery in offline integration tests. */
   pushSend?: SendPush;
   lang?: string;
+  /** Called on POST /stop from the lead's own machine: `human-use stop`, or a newer version taking over. Omit to refuse it. */
+  onStopRequest?: () => void;
 }
 
 const TICK_MS = 5000;
@@ -120,7 +122,12 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<Daemon> 
       return;
     }
     if (req.method === "GET" && req.url === "/health") {
-      send(200, { ok: true, version: VERSION, uptime_s: Math.round((Date.now() - started) / 1000) });
+      send(200, { ok: true, version: VERSION, pid: process.pid, uptime_s: Math.round((Date.now() - started) / 1000) });
+      return;
+    }
+    if (req.method === "POST" && req.url === "/stop" && options.onStopRequest) {
+      send(200, { ok: true, pid: process.pid });
+      setTimeout(options.onStopRequest, 50);
       return;
     }
     const path = new URL(req.url ?? "/", "http://127.0.0.1");

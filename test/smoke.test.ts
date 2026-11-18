@@ -14,6 +14,7 @@ import { VERSION } from "../src/version.js";
 import { extractActions, buildContent } from "../src/driver.js";
 import { Store } from "../src/store.js";
 import { INPUTS } from "../src/tools.js";
+import { older } from "../src/mcp.js";
 
 test("installer writes only the selected driver and preserves existing config", async () => {
   const dir = mkdtempSync(join(tmpdir(), "human-use-"));
@@ -81,6 +82,74 @@ test("user registration writes the Codex profile with the long tool timeout, onc
   } finally {
     if (codexHome === undefined) delete process.env.CODEX_HOME;
     else process.env.CODEX_HOME = codexHome;
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("installing a new version repoints the Codex entry an earlier install wrote, and only that one", async () => {
+  const codexHome = process.env.CODEX_HOME;
+  const dir = mkdtempSync(join(tmpdir(), "human-use-codex-upgrade-"));
+  try {
+    process.env.CODEX_HOME = dir;
+    const path = join(dir, "config.toml");
+    const old = join("C:", "u", ".human-use", "app", "0.0.9", "node_modules", "human-use", "dist", "cli.js");
+    const fresh = join("C:", "u", ".human-use", "app", VERSION, "node_modules", "human-use", "dist", "cli.js");
+    const before = [
+      "# mine",
+      "[mcp_servers.human-use]",
+      `command = ${JSON.stringify("/old/node")}`,
+      `args = ${JSON.stringify([old, "mcp"])}`,
+      "tool_timeout_sec = 270",
+      "",
+      "[mcp_servers.other]",
+      `command = "x"`,
+      `args = ${JSON.stringify([old])}`,
+      ""
+    ].join("\r\n");
+    writeFileSync(path, before);
+    const mcp = { command: process.execPath, args: [fresh, "mcp"], env: {} };
+    assert.match(await registerCodexUser(mcp), /updated human-use/);
+    assert.equal(readFileSync(path, "utf8"), before
+      .replace(`command = ${JSON.stringify("/old/node")}`, `command = ${JSON.stringify(process.execPath)}`)
+      .replace(`args = ${JSON.stringify([old, "mcp"])}`, `args = ${JSON.stringify([fresh, "mcp"])}`));
+    assert.match(await registerCodexUser(mcp), /already has a human-use entry/);
+
+    // A hand-made entry (a source checkout, say) is the lead's own and stays.
+    const own = before.replace(JSON.stringify([old, "mcp"]), JSON.stringify(["D:/src/human-use/dist/cli.js", "mcp"]));
+    writeFileSync(path, own);
+    assert.match(await registerCodexUser(mcp), /already has a human-use entry/);
+    assert.equal(readFileSync(path, "utf8"), own);
+  } finally {
+    if (codexHome === undefined) delete process.env.CODEX_HOME;
+    else process.env.CODEX_HOME = codexHome;
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("a newer package replaces an older resident runtime; stop asks the runtime to end", async () => {
+  assert.equal(older("0.1.0", "0.1.1"), true);
+  assert.equal(older(undefined, "0.1.1"), true);
+  assert.equal(older("0.1.1", "0.1.1"), false);
+  assert.equal(older("0.2.0", "0.1.9"), false);
+  assert.equal(older("0.1.10", "0.1.9"), false);
+
+  const dir = mkdtempSync(join(tmpdir(), "human-use-stop-"));
+  let stopped = 0;
+  const daemon = await startDaemon({ port: 0, db: join(dir, "runtime.sqlite"), telegramToken: "", driver: null, brain: null, web: false, onStopRequest: () => { stopped++; } });
+  try {
+    const address = daemon.server.address();
+    assert.ok(address && typeof address === "object");
+    const admin = `http://127.0.0.1:${address.port}`;
+    const health = await (await fetch(`${admin}/health`)).json() as { version: string; pid: number };
+    assert.equal(health.version, VERSION);
+    assert.equal(health.pid, process.pid);
+    // Another site open in the lead's browser cannot stop it.
+    assert.notEqual((await fetch(`${admin}/stop`, { method: "POST", headers: { origin: "https://example.com" } })).status, 200);
+    assert.equal((await fetch(`${admin}/stop`, { method: "POST" })).status, 200);
+    await new Promise(resolve => setTimeout(resolve, 120));
+    assert.equal(stopped, 1);
+  } finally {
+    await daemon.stop();
     rmSync(dir, { recursive: true, force: true });
   }
 });

@@ -77,6 +77,9 @@ export async function writeDriverConfig(dir: string, driver: string): Promise<vo
   await saveRuntimeConfig(dir, { driver });
 }
 
+/** An entry an earlier install wrote: it points into a copied <home>/app/<version>. */
+const OWN_COPY = /[\\/]app[\\/][^\\/"\s]+[\\/]node_modules[\\/]human-use[\\/]/;
+
 const samePath = (a: string, b: string) => process.platform === "win32" ? a.toLowerCase() === b.toLowerCase() : a === b;
 
 /** Add one section without reserializing the user's comments or editing an existing server entry. */
@@ -114,7 +117,12 @@ async function appendCodexServer(path: string, mcp: ReturnType<typeof mcpProcess
   const config = parseToml(existing.replace(/^\uFEFF/, ""), { integersAsBigInt: "asNeeded" });
   const servers = config.mcp_servers;
   if (servers && typeof servers === "object" && Object.hasOwn(servers, "human-use")) {
-    return `Codex already has a human-use entry in ${path}.`;
+    const entry = (servers as Record<string, { args?: unknown }>)["human-use"];
+    const old = Array.isArray(entry?.args) ? entry.args.map(String) : [];
+    if (!old.some(arg => OWN_COPY.test(arg)) || JSON.stringify(old) === JSON.stringify(mcp.args)) {
+      return `Codex already has a human-use entry in ${path}.`;
+    }
+    return updateCodexServer(path, existing, mcp, next);
   }
   const lines = [
     "[mcp_servers.human-use]",
@@ -227,10 +235,6 @@ export async function install(argv: string[]): Promise<{ registered: boolean; op
   const savedDriver = config().driver ?? config().overseer;
   const driver = values.driver ?? values.overseer ?? savedDriver ?? await chooseBackend(selected);
   if (typeof driver === "string") {
-    // Accept CLI and Ollama backends here. An OpenAI endpoint belongs in config.json or the environment.
-    if (!/^(?:none|claude(?::[^:\s]+)?|codex(?::[^:\s]+){0,2}|ollama:[^\s]+)$/.test(driver)) {
-      throw new Error("use none, claude[:model], codex[:model[:effort]], or ollama:<model>");
-    }
     makeDriver(driver);
     if (driver !== savedDriver) await writeDriverConfig(dir, driver);
   }
@@ -305,6 +309,26 @@ export function openBrowser(url: string): void {
   } catch { /* no browser here; the address is printed */ }
 }
 
+/** Point an entry an earlier install wrote at this version, leaving the rest of the file as it was. */
+async function updateCodexServer(path: string, existing: string, mcp: ReturnType<typeof mcpProcess>, next: string): Promise<string> {
+  const lines = existing.split(/(?<=\n)/);
+  const start = lines.findIndex(line => /^\s*\[\s*mcp_servers\s*\.\s*(?:human-use|"human-use")\s*\]\s*$/.test(line));
+  let replaced = 0;
+  for (let i = start + 1; start >= 0 && i < lines.length && !/^\s*\[/.test(lines[i]!); i++) {
+    const eol = /\r?\n$/.exec(lines[i]!)?.[0] ?? "";
+    if (/^\s*command\s*=/.test(lines[i]!)) { lines[i] = `command = ${JSON.stringify(mcp.command)}${eol}`; replaced++; }
+    else if (/^\s*args\s*=.*\]\s*$/.test(lines[i]!.trimEnd())) { lines[i] = `args = ${JSON.stringify(mcp.args)}${eol}`; replaced++; }
+  }
+  const updated = lines.join("");
+  const check = replaced === 2 ? parseToml(updated.replace(/^\uFEFF/, ""), { integersAsBigInt: "asNeeded" }) : null;
+  const args = (check?.mcp_servers as Record<string, { args?: unknown }> | undefined)?.["human-use"]?.args;
+  if (JSON.stringify(args) !== JSON.stringify(mcp.args)) {
+    return `Codex has an older human-use entry in ${path}; set its args to ${JSON.stringify(mcp.args)}.`;
+  }
+  await replaceConfig(path, existing, updated);
+  return `Codex: updated human-use in ${path} to ${VERSION}. ${next}`;
+}
+
 async function registerWithHost(host: Host, global: boolean, { command, args, env }: ReturnType<typeof mcpProcess>): Promise<string> {
   if (!commandOnPath(host)) throw new Error(`${host} is not on PATH`);
   const settings = Object.entries(env).map(([key, value]) => `${key}=${value}`);
@@ -315,9 +339,16 @@ async function registerWithHost(host: Host, global: boolean, { command, args, en
   }
   const envFlags = settings.flatMap(value => [host === "codex" ? "--env" : "-e", value]);
   const scope = host === "claude" ? ["--scope", global ? "user" : "local"] : [];
-  const result = await run(["mcp", "add", ...scope, "human-use", ...envFlags, "--", command, ...args]);
-  if (host === "claude" && /MCP server human-use already exists in (user|local) config/.test(result.stdout + result.stderr)) {
-    return "Claude Code: human-use is already registered.";
+  const add = () => run(["mcp", "add", ...scope, "human-use", ...envFlags, "--", command, ...args]);
+  let result = await add();
+  const exists = /MCP server human-use already exists in (user|local) config/.exec(result.stdout + result.stderr);
+  if (host === "claude" && exists) {
+    const current = await run(["mcp", "get", "human-use"]);
+    const script = args.at(-2) ?? "";
+    if (!OWN_COPY.test(current.stdout) || current.stdout.includes(script)) return "Claude Code: human-use is already registered.";
+    await run(["mcp", "remove", "human-use", "--scope", exists[1]!]);
+    result = await add();
+    if (result.code === 0) return `Claude Code: updated human-use to ${VERSION}.`;
   }
   if (result.code !== 0) throw new Error(`could not register human-use: ${(result.stderr || result.stdout).trim()}`);
   return `${HOST_LABELS[host]}: registered human-use for ${global ? "your user account" : "this project"}.`;
