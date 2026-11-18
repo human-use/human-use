@@ -1363,7 +1363,7 @@ function finalState() {
   L.append(el("div", { className: "e in" }, el("code", { textContent: "… 6,212 calls over 718 days …" })));
   log("→", "goal_close", { goal: GID, outcome: "done", reason: "Certified electoral count (level 2). Oath at the West Front, 12:00 ET, public record (level 2)." });
   log("←", "goal_close", { goal: GID, status: "done" });
-  setCalls(6214); idle(); act(7); playBox("done"); still = false;
+  setCalls(6214); idle(); act(7); playBox("done"); $("t-run").textContent = "Day 718"; still = false;
 }
 
 async function start() {
