@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { readFileSync, readdirSync, readlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { runProcess } from "./exec.js";
 import { McpServer } from "@modelcontextprotocol/server";
@@ -74,14 +75,40 @@ async function listener(): Promise<number | null> {
       return row ? Number(row[4]) || null : null;
     }
     const { stdout } = await runProcess({ command: "lsof", args: ["-nP", `-iTCP@127.0.0.1:${p}`, "-sTCP:LISTEN", "-t"], stdin: "", cwd: tmpdir(), timeoutMs: 10_000 });
-    return Number(stdout.trim().split(/\s+/)[0]) || null;
+    const pid = Number(stdout.trim().split(/\s+/)[0]) || null;
+    if (pid || process.platform !== "linux") return pid;
   } catch {
-    return null;
+    if (process.platform !== "linux") return null;
   }
+  return procListener(p);
+}
+
+/** Linux without lsof: the listening socket's inode from /proc/net/tcp, then the process that holds it. */
+function procListener(p: number): number | null {
+  const hex = p.toString(16).toUpperCase().padStart(4, "0");
+  let inode: string | undefined;
+  for (const file of ["/proc/net/tcp", "/proc/net/tcp6"]) {
+    try {
+      inode ??= readFileSync(file, "utf8").split("\n").map(line => line.trim().split(/\s+/))
+        .find(cols => cols[1]?.endsWith(`:${hex}`) && cols[3] === "0A")?.[9];
+    } catch { /* not readable here */ }
+  }
+  if (!inode) return null;
+  for (const pid of readdirSync("/proc").filter(name => /^\d+$/.test(name))) {
+    try {
+      if (readdirSync(`/proc/${pid}/fd`).some(fd => {
+        try { return readlinkSync(`/proc/${pid}/fd/${fd}`) === `socket:[${inode}]`; } catch { return false; }
+      })) return Number(pid);
+    } catch { /* another user's process */ }
+  }
+  return null;
 }
 
 /** The command line of a process, or null when it cannot be read. */
 async function commandLine(pid: number): Promise<string | null> {
+  if (process.platform === "linux") {
+    try { return readFileSync(`/proc/${pid}/cmdline`, "utf8").split("\0").filter(Boolean).join(" ") || null; } catch { /* fall back to ps */ }
+  }
   try {
     const { stdout } = process.platform === "win32"
       ? await runProcess({ command: "powershell.exe", args: ["-NoProfile", "-NonInteractive", "-Command", `(Get-CimInstance Win32_Process -Filter 'ProcessId=${pid}').CommandLine`], stdin: "", cwd: tmpdir(), timeoutMs: 15_000 })
