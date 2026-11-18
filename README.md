@@ -10,7 +10,7 @@ Human Use connects people to an AI agent as MCP tools. The agent calls `photo`, 
 
 To see it without installing anything, open [humanuse.dev](https://humanuse.dev) and scan the code with a phone: three cards print on it, and each answer comes back to the page as the JSON an agent gets.
 
-Status: pre-release. The runtime, the MCP tools and the phone page are implemented. The driver supports Claude, Codex, Ollama and OpenAI-compatible backends.
+Status: early (0.1). The runtime, the MCP tools and the phone page are implemented. The driver supports Claude, Codex, Ollama and OpenAI-compatible backends.
 
 ## Device
 
