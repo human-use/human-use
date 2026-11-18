@@ -1,5 +1,7 @@
 <p align="center"><img src="docs/design/icon.svg" width="112" alt=""></p>
 
+<p align="center">English · <a href="README.zh-CN.md">简体中文</a> · <a href="README.ja.md">日本語</a> · <a href="README.ko.md">한국어</a></p>
+
 # Human Use
 
 A device driver for a person.
@@ -103,7 +105,6 @@ Set the driver's backend with `HUMAN_USE_DRIVER` or `driver` in the runtime's `c
 |---|---|
 | `claude:haiku` | The lead's Claude subscription, `claude -p` with no tools |
 | `codex:gpt-6-luna:medium` | The lead's ChatGPT subscription, `codex exec` with no tools |
-
 | `ollama:<model>` | A local model |
 | `openai:<model>@<base url>` | Any OpenAI-compatible endpoint. The key is read from `HUMAN_USE_API_KEY` |
 
