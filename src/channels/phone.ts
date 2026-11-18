@@ -93,14 +93,15 @@ export class PhoneChannel implements Channel {
     if (!card || (payload.round !== undefined && payload.round !== card.round)) return { error: "NOT_OPEN" };
     if (!payload.answer || typeof payload.answer !== "object" || Array.isArray(payload.answer)) return { error: "REJECTED" };
     const out = this.clean(card, payload.answer as Record<string, unknown>);
-    this.cards = this.cards.filter(open => open.job_id !== card.job_id);
-    this.bump();
+    // The card leaves the phone only once the runtime has the answer, so a failed write can be sent again.
     try {
       this.options.answer(card.job_id, out);
-      return { ok: true };
     } catch (error) {
       return { error: error instanceof Error ? error.message.split(" ")[0]! : "REJECTED" };
     }
+    this.cards = this.cards.filter(open => open !== card);
+    this.bump();
+    return { ok: true };
   }
 
   /** Keep only the shapes an Answer may have, and move any file out of the request onto disk. */

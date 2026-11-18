@@ -23,7 +23,11 @@ interface Fixture {
   sudo?: boolean;
   rounds_left?: number;
   notebook?: string;
-  expected: { type: Outcome["type"] | Outcome["type"][]; reason?: string; text_pattern?: string; result?: Record<string, unknown>; keys?: string[]; evidence_level?: number };
+  /** A goal_check case: the goal and the evidence the runtime holds for it. */
+  event?: "goal_check";
+  goal?: { goal: string; done_when: string };
+  evidence?: DriverInput["evidence"];
+  expected: { type: Outcome["type"] | Outcome["type"][]; reason?: string; text_pattern?: string; result?: Record<string, unknown>; keys?: string[]; evidence_level?: number; cites?: string[] };
 }
 
 /** Test only, for wording checks on cheap models. opencode's free models accept requests from its own agents only, so the
@@ -101,7 +105,7 @@ function inputFor(fixture: Fixture): DriverInput {
     ...(path ? { file: { path, kind: "photo", captured } } : {})
   } : null;
   return {
-    event: answer ? "answer" : "start",
+    event: fixture.event ?? (answer ? "answer" : "start"),
     job: {
       id: `j_${fixture.id}`, tool: fixture.tool, variant: null, instruction: fixture.instruction,
       args: { ...fixture.args, ...(fixture.nonce ? { nonce: true } : {}) },
@@ -113,7 +117,7 @@ function inputFor(fixture: Fixture): DriverInput {
       answer: index === rounds - 1 ? answer! : { text: "没有补充" }
     })),
     notebook: fixture.notebook ?? "",
-    unit: { lang: "zh-CN" }, goal: null, evidence: [], now
+    unit: { lang: "zh-CN" }, goal: fixture.goal ?? null, evidence: fixture.evidence ?? [], now
   };
 }
 
@@ -138,6 +142,10 @@ function check(raw: unknown, expected: Fixture["expected"]): void {
   }
   for (const key of expected.keys ?? []) {
     if (actual.type === "complete" && !(key in actual.result)) throw new Error(`result has no ${key}`);
+  }
+  for (const id of expected.cites ?? []) {
+    const cited = actual.type === "complete" ? actual.result.evidence : undefined;
+    if (!Array.isArray(cited) || !cited.includes(id)) throw new Error(`verdict does not cite ${id}`);
   }
   if (expected.evidence_level !== undefined && (actual.type !== "complete" || actual.evidence_level !== expected.evidence_level)) {
     throw new Error(`expected evidence_level ${expected.evidence_level}`);

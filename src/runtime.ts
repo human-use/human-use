@@ -228,7 +228,8 @@ export interface Briefing {
   /** The latest hand-off a pass left for the passes after it. */
   agenda: { at: string; text: string } | null;
   decisions: Array<{ at: string; decision: string; reason: string }>;
-  budget: { currency: string; monthly: number; spent_this_month: number; remaining: number } | null;
+  /** remaining = monthly - spent_this_month - committed; committed is the cap of every spend card still open. */
+  budget: { currency: string; monthly: number; spent_this_month: number; committed: number; remaining: number } | null;
   next_wake: { at: string; why: string } | null;
   warnings: string[];
   write_back: string;
@@ -734,11 +735,17 @@ export class Runtime {
         const options = (job.data.args.options as string[] | undefined) ?? [];
         return answer.choice !== undefined && options.includes(answer.choice) ? { choice: answer.choice } : null;
       }
-      case "slider": return answer.value !== undefined ? { value: answer.value } : null;
+      case "slider": {
+        const value = answer.value;
+        const fits = typeof value === "number" && Number.isFinite(value) && (job.tool !== "mood" || (Number.isInteger(value) && value >= 1 && value <= 5));
+        return fits ? { value } : null;
+      }
       case "checklist": {
+        // Counted over the steps themselves: a repeated or out-of-range index checks nothing.
         const steps = (job.data.args.steps as string[] | undefined) ?? [];
-        const checked = answer.checked ?? [];
-        return { done: checked.length === steps.length, checked: steps.filter((_, index) => checked.includes(index)), missed: steps.filter((_, index) => !checked.includes(index)) };
+        const checked = new Set(answer.checked ?? []);
+        const missed = steps.filter((_, index) => !checked.has(index));
+        return { done: missed.length === 0, checked: steps.filter((_, index) => checked.has(index)), missed };
       }
       case "confirm": return answer.choice === undefined || answer.choice === "done" ? { done: true, at: this.now() } : null;
       case "location": return answer.location ? { arrived: true, location: answer.location, at: this.now() } : null;
@@ -807,7 +814,7 @@ export class Runtime {
       if ((action.minutes ?? minutes) > minutes || (action.seconds ?? 0) > minutes * 60 || max > cap) return false;
       if (max === 0) return true;
       if (!rechargeActivity(variant)) return false;
-      this.checkBudget({ instruction: job.data.instruction, goal: job.goal_id ?? undefined, max, currency: job.data.args.currency as string | undefined });
+      this.checkBudget({ instruction: job.data.instruction, goal: job.goal_id ?? undefined, max, currency: job.data.args.currency as string | undefined }, job.id);
       return true;
     }
     if (action.type !== "complete") return true;
@@ -943,21 +950,26 @@ export class Runtime {
       ? { recharged: result.recharged !== false && result.done !== false, variant: job.data.variant }
       : result;
     const files = job.data.rounds.flatMap(round => round.answer?.file ? [round.answer.file] : []);
+    // The driver may grade evidence weaker than the files support, never stronger. With no file, it is the unit's word.
+    const graded = (supported: number) => Math.max(level ?? supported, supported);
     if (requiresEvidence(job)) {
-      const evidence_level = level ?? Math.min(6, ...files.map(fileEvidenceLevel));
-      const { unverified: _unverified, ...fields } = compiled;
-      compiled = { ...fields, evidence_level, ...(evidence_level === 6 ? { unverified: true } : {}) };
+      const evidence_level = graded(Math.min(6, ...files.map(fileEvidenceLevel)));
+      const { unverified: _unverified, claimed_done: _claimed, ...fields } = compiled;
+      // A sudo call does not take the unit's word. At level 6 "done" and "cannot" are both passed on as claims: done is unknown.
+      compiled = evidence_level === 6
+        ? { ...fields, ...("done" in fields ? { done: null, claimed_done: fields.done } : {}), evidence_level, unverified: true }
+        : { ...fields, evidence_level };
     }
     this.store.tx(() => {
       for (const file of files) {
-        const fileLevel = level ?? fileEvidenceLevel(file);
+        const fileLevel = graded(fileEvidenceLevel(file));
         const evidenceId = id("e");
         this.store.insert("evidence", { id: evidenceId, at: now, goal_id: job.goal_id, job_id: job.id, level: fileLevel, kind: file.kind, path: file.path, data: JSON.stringify(result) });
         evidence.push(evidenceId);
       }
       if (!files.length && (CARD_KIND[job.tool] !== "theater" || job.data.recharge_card)) {
         const evidenceId = id("e");
-        this.store.insert("evidence", { id: evidenceId, at: now, goal_id: job.goal_id, job_id: job.id, level: level ?? 6, kind: "answer", path: null, data: JSON.stringify(result) });
+        this.store.insert("evidence", { id: evidenceId, at: now, goal_id: job.goal_id, job_id: job.id, level: 6, kind: "answer", path: null, data: JSON.stringify(result) });
         evidence.push(evidenceId);
       }
       if (job.tool === "spend" || (job.data.recharge_card?.max && typeof result.amount === "number")) {
@@ -992,10 +1004,10 @@ export class Runtime {
 
   // ------------------------------------------------------------ money
 
-  private checkBudget(args: DispatchArgs): void {
+  private checkBudget(args: DispatchArgs, self?: string): void {
     if (args.max === undefined || !args.currency) throw new HumanUseError("HRT-4001", "spend needs max and currency");
     if (!args.goal) return;
-    const budget = this.budget(args.goal);
+    const budget = this.budget(args.goal, self);
     if (!budget) return;
     if (budget.currency !== args.currency) throw new HumanUseError("HRT-4021", `CURRENCY_MISMATCH budget is ${budget.currency}`);
     if (args.max > budget.remaining) throw new HumanUseError("HRT-4020", `BUDGET_EXCEEDED remaining ${budget.remaining} ${budget.currency}`);
@@ -1011,14 +1023,34 @@ export class Runtime {
     if (Number.isFinite(max) && amount > max) this.store.event(this.now(), "overspend", job.id, job.goal_id, { amount, max });
   }
 
-  budget(goalId: string): Briefing["budget"] {
+  /** `self` leaves one job's own hold out, for a job re-checking the budget for itself. */
+  budget(goalId: string, self?: string): Briefing["budget"] {
     const goal = this.goal(goalId);
     if (!goal.data.budget) return null;
     const { monthly, currency } = goal.data.budget;
     const spentMinor = this.store.get<{ s: number | null }>("SELECT SUM(amount_minor) AS s FROM ledger WHERE goal_id = ? AND currency = ? AND at >= ?",
       goalId, currency, monthStart(this.clock.now()))!.s ?? 0;
-    const spent = fromMinor(spentMinor, currency);
-    return { currency, monthly, spent_this_month: spent, remaining: fromMinor(toMinor(monthly, currency) - spentMinor, currency) };
+    const heldMinor = this.held(goalId, currency, self);
+    return {
+      currency, monthly, spent_this_month: fromMinor(spentMinor, currency), committed: fromMinor(heldMinor, currency),
+      remaining: fromMinor(toMinor(monthly, currency) - spentMinor - heldMinor, currency)
+    };
+  }
+
+  /** Money promised to cards not yet settled. A card holds its cap until it settles; the ledger then holds what was spent. */
+  private held(goalId: string, currency: string, self?: string): number {
+    let minor = 0;
+    for (const row of this.store.all<JobRow>(`SELECT * FROM jobs WHERE goal_id = ? AND tool IN ('spend','recharge') AND status IN ${OPEN_STATES}`, goalId)) {
+      if (row.id === self) continue;
+      const data = JSON.parse(row.data) as JobData;
+      if ((data.args.currency ?? currency) !== currency) continue;
+      // A recharge holds its cap until its card is chosen; then the card's own max, or nothing for a free variant.
+      const cap = row.tool === "spend" ? Number(data.args.max ?? 0)
+        : data.recharge_card ? data.recharge_card.max
+        : row.status === "open" || data.rounds.length ? 0 : Number(data.args.max ?? 0);
+      if (Number.isFinite(cap) && cap > 0) minor += toMinor(cap, currency);
+    }
+    return minor;
   }
 
   // ------------------------------------------------------------ inbox
@@ -1096,7 +1128,8 @@ export class Runtime {
 
   /**
    * Overdue maintenance as plain facts, e.g. "meal: 6h12m ago", per unit; with several units each line starts with
-   * the unit's name: "mika meal: 6h12m ago". Quiet while a call for it is pending for that unit.
+   * the unit's name: "mika meal: 6h12m ago". Quiet while a call for it is pending for that unit. A unit's upkeep is
+   * tracked from its first record of that kind: someone on the team who never logged a meal gets no meal warnings.
    */
   warnings(): string[] {
     const units = this.units();
@@ -1104,8 +1137,7 @@ export class Runtime {
       if (this.store.get(`SELECT 1 FROM jobs WHERE tool = ? AND unit_id = ? AND status IN ${OPEN_STATES}`, tool, unit.id)) return [];
       const who = units.length > 1 ? `${unit.name} ` : "";
       const { seconds } = this.since({ tool, unit: unit.id });
-      if (seconds === null) return [`${who}${label}: none recorded`];
-      return seconds >= hours * 3600 ? [`${who}${label}: ${ago(seconds)} ago`] : [];
+      return seconds !== null && seconds >= hours * 3600 ? [`${who}${label}: ${ago(seconds)} ago`] : [];
     }));
   }
 
@@ -1162,6 +1194,8 @@ export class Runtime {
       return { goal: goalId, status: "cancelled" };
     }
     if (!this.driver) throw new HumanUseError("HRT-5030", "VERIFIER_UNAVAILABLE a goal closes as done only after its evidence is checked against done_when");
+    const checking = this.store.get<{ id: string }>("SELECT id FROM jobs WHERE goal_id = ? AND tool = 'goal_check' AND status = 'review'", goalId);
+    if (checking) return { goal: goalId, status: "checking", check_job: checking.id };
     const now = this.now();
     const jobId = id("j");
     const data: JobData = { instruction: `Check done_when against the evidence. Agent says: ${reason}`, args: {}, max_rounds: 1, rounds: [], internal: true };
@@ -1170,18 +1204,34 @@ export class Runtime {
     return { goal: goalId, status: "checking", check_job: jobId };
   }
 
+  /**
+   * The model explains; the code decides. Only `accepted: true` that cites evidence this goal holds closes it.
+   * Anything else (false, a missing field, a contradiction, evidence from elsewhere) leaves the goal open.
+   */
   private closeChecked(job: Job, result: Record<string, unknown>): void {
-    this.saveJob(job, { status: "done", data: { ...job.data, result } });
-    if (job.goal_id) this.endGoal(this.goal(job.goal_id), "done", String(result.reason ?? "evidence accepted"));
+    const cited = Array.isArray(result.evidence) ? result.evidence.filter((ref): ref is string => typeof ref === "string") : [];
+    const held = job.goal_id ? new Set(this.store.all<{ id: string }>("SELECT id FROM evidence WHERE goal_id = ?", job.goal_id).map(row => row.id)) : new Set<string>();
+    const reason = typeof result.reason === "string" && result.reason ? result.reason : "";
+    if (result.accepted !== true || !cited.length || !cited.every(ref => held.has(ref))) {
+      this.escalate(job, `not accepted: ${reason || (result.accepted === true ? "no evidence of this goal cited" : "verdict missing")}`.slice(0, 300));
+      return;
+    }
+    this.store.tx(() => {
+      this.saveJob(job, { status: "done", data: { ...job.data, result } });
+      if (job.goal_id) this.endGoal(this.goal(job.goal_id), "done", reason || "evidence accepted");
+    });
     this.release(job.id);
   }
 
+  /** A goal ends once. The update is conditional, so a late verdict cannot turn a cancelled goal into a done one. */
   private endGoal(goal: Goal, status: "done" | "cancelled", reason: string): void {
     this.store.tx(() => {
-      this.store.update("goals", goal.id, { status });
+      if (!Number(this.store.run("UPDATE goals SET status = ? WHERE id = ? AND status = 'active'", status, goal.id).changes)) return;
       this.store.run("UPDATE wakes SET replaced = 1 WHERE goal_id = ? AND fired_at IS NULL", goal.id);
       this.store.run("UPDATE schedules SET active = 0 WHERE goal_id = ?", goal.id);
-      for (const row of this.store.all<{ id: string }>("SELECT id FROM jobs WHERE goal_id = ? AND status IN ('scheduled','queued','open')", goal.id)) this.cancel(row.id, `goal ${status}`);
+      // Cards the unit has not answered yet are withdrawn, and so is a verdict still being reached.
+      // A card already answered and in review keeps its answer: the work was done, and money spent still lands in the ledger.
+      for (const row of this.store.all<{ id: string }>("SELECT id FROM jobs WHERE goal_id = ? AND (status IN ('scheduled','queued','open') OR (status = 'review' AND tool = 'goal_check'))", goal.id)) this.cancel(row.id, `goal ${status}`);
       this.store.event(this.now(), "goal_closed", goal.id, goal.id, { status, reason });
       this.deliver({ type: "goal_closed", goal: goal.id, outcome: status }, goal.id);
     });

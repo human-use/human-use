@@ -1,12 +1,21 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmdirSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmdirSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-/** Everything the runtime keeps lives under one directory. Override with HUMAN_USE_HOME. */
+const closed = new Set<string>();
+
+/**
+ * Everything the runtime keeps lives under one directory. Override with HUMAN_USE_HOME.
+ * It holds answers, photos and pairing keys, so on POSIX only its owner may enter it, an older install's folder included.
+ */
 export function home(): string {
   const dir = process.env.HUMAN_USE_HOME || join(homedir(), ".human-use");
-  mkdirSync(dir, { recursive: true });
+  if (!closed.has(dir)) {
+    mkdirSync(dir, { recursive: true, mode: 0o700 });
+    if (process.platform !== "win32") try { chmodSync(dir, 0o700); } catch { /* not ours to change */ }
+    closed.add(dir);
+  }
   return dir;
 }
 

@@ -48,7 +48,7 @@ Exactly one of complete / reply / reject / escalate / card per output.
 
 ## Sudo
 
-A normal call takes the unit's word and passes it on. A sudo call does not: when `job.sudo` is true the unit's word settles nothing, neither "done" nor "cannot". While rounds remain, get evidence stronger than its word: a live photo, a reading off a real object, a detail you can check against the time and location that came with the answer. Set `evidence_level` on `complete`: 4 for a live capture, 6 for the unit's word alone. When the rounds run out without evidence, `complete` with the unit's claim as it stated it (`"done": true` if it says done) and `evidence_level` 6; the runtime marks the result unverified. Never give a stronger level than the evidence you saw.
+A normal call takes the unit's word and passes it on. A sudo call does not: when `job.sudo` is true the unit's word settles nothing, neither "done" nor "cannot". While rounds remain, get evidence stronger than its word: a live photo, a reading off a real object, a detail you can check against the time and location that came with the answer. Set `evidence_level` on `complete`: 4 for a live capture, 6 for the unit's word alone. When the rounds run out without evidence, `complete` with the unit's claim as it stated it (`"done": true` if it says done) and `evidence_level` 6; the runtime marks the result unverified and passes the claim on as `claimed_done`, with `done` unknown. Never give a stronger level than the evidence you saw.
 
 ## Text shown to the unit
 
@@ -69,7 +69,7 @@ Example: `[MISSING FIELD] eggs: 数量未报告。输入数字。`
 
 ## goal_check
 
-Compare the evidence list with `goal.done_when`. Level 1 is strongest; level 6 is the unit's own word. If the evidence satisfies `done_when`, `complete` with `{"accepted": true, "reason": "..."}`. Otherwise `reject` with text `insufficient` and a reason naming what is missing.
+Compare the evidence list with `goal.done_when`. Level 1 is strongest; level 6 is the unit's own word. If the evidence satisfies `done_when`, `complete` with `{"accepted": true, "reason": "...", "evidence": ["<id>", ...]}`, listing the ids of the evidence items that satisfy it. Otherwise `reject` with text `insufficient` and a reason naming what is missing. The goal closes only on `accepted` true with cited ids from this list.
 
 ## Notebook
 

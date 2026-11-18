@@ -130,5 +130,7 @@
     "id": "sudo-final-claim", "tool": "act", "instruction": "ACT 把书放回书架",
     "sudo": true, "rounds_left": 0, "answer": {"text": "做完了，没照片"},
     "expected": {"type": "complete", "result": {"done": true}, "evidence_level": 6}
-  }
+  },
+  {"id": "goal-check-met", "smoke": true, "tool": "goal_check", "event": "goal_check", "instruction": "Check the goal against its evidence", "goal": {"goal": "Keep the first-aid kit stocked", "done_when": "A photo of the open kit this week shows ibuprofen and bandages inside"}, "evidence": [{"id": "e_7f21c0", "level": 4, "kind": "photo", "at": "2026-11-13T09:12:00Z", "data": {"done": true, "contents": "ibuprofen, bandages, gauze"}}, {"id": "e_93ab44", "level": 6, "kind": "statement", "at": "2026-11-13T09:13:00Z", "data": {"done": true}}], "expected": {"type": "complete", "result": {"accepted": true}, "cites": ["e_7f21c0"]}},
+  {"id": "goal-check-unmet", "smoke": true, "tool": "goal_check", "event": "goal_check", "instruction": "Check the goal against its evidence", "goal": {"goal": "Keep the first-aid kit stocked", "done_when": "A photo of the open kit this week shows ibuprofen and bandages inside"}, "evidence": [{"id": "e_93ab44", "level": 6, "kind": "statement", "at": "2026-11-13T09:13:00Z", "data": {"done": true, "note": "restocked it"}}], "expected": {"type": "reject"}}
 ]

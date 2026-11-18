@@ -85,14 +85,13 @@ test("the agenda carries over passes until a pass rewrites it", async () => {
   } finally { done(); }
 });
 
-test("goal calls carry overdue maintenance; a pending call for it silences the warning", async () => {
+test("goal calls carry overdue maintenance from the first record; a pending call for it silences the warning", async () => {
   const { runtime, clock, done } = setup();
   try {
     const goal = runtime.setGoal({ goal: "G", kind: "reach", done_when: "x" }).goal;
     assert.equal((await callTool(runtime, "ps", {})).warnings, undefined);
-    assert.deepEqual((await callTool(runtime, "goal_note", { goal, decision: "d", reason: "r" })).warnings, ["meal: none recorded", "sleep: none recorded"]);
-    const { result, warnings } = await callTool(runtime, "eat", { goal });
-    assert.deepEqual(warnings, ["sleep: none recorded"]);
+    assert.equal((await callTool(runtime, "goal_note", { goal, decision: "d", reason: "r" })).warnings, undefined, "no record yet, nothing to be overdue");
+    const { result } = await callTool(runtime, "eat", { goal });
     runtime.answer((result as JobView).job, { choice: "done" });
     const slept = (await callTool(runtime, "sleep", { goal, until: "07:00" })).result as JobView;
     runtime.answer(slept.job, { choice: "done" });
@@ -101,6 +100,8 @@ test("goal calls carry overdue maintenance; a pending call for it silences the w
     clock.advance(3600 + 12 * 60);
     assert.deepEqual((await callTool(runtime, "goal_note", { goal, decision: "d", reason: "r" })).warnings, ["meal: 6h12m ago"]);
     assert.deepEqual(runtime.briefing(goal).warnings, ["meal: 6h12m ago"]);
+    await callTool(runtime, "eat", { goal });
+    assert.deepEqual(runtime.briefing(goal).warnings, [], "a pending meal silences the warning");
   } finally { done(); }
 });
 
@@ -275,7 +276,7 @@ test("sudo confirmation asks for evidence and labels an unverified final claim",
       }
     }
     assert.ok(driver.inputs.every(input => input.job.sudo));
-    assert.deepEqual(runtime.view(job).result, { done: true, evidence_level: 6, unverified: true });
+    assert.deepEqual(runtime.view(job).result, { done: null, claimed_done: true, evidence_level: 6, unverified: true });
   } finally { done(); }
 });
 
@@ -470,10 +471,80 @@ test("spend is checked against the budget and booked in minor units", async () =
     const { result } = await callTool(runtime, "spend", { item: "vegetables", goal, max: 15, currency: "USD" });
     runtime.answer((result as JobView).job, { file: { path: "receipt.jpg", kind: "document" } });
     await runtime.settle();
-    assert.deepEqual(runtime.budget(goal), { currency: "USD", monthly: 20, spent_this_month: 12.35, remaining: 7.65 });
+    assert.deepEqual(runtime.budget(goal), { currency: "USD", monthly: 20, spent_this_month: 12.35, committed: 0, remaining: 7.65 });
     const row = runtime.store.get<{ amount_minor: number; level: number }>("SELECT amount_minor, (SELECT level FROM evidence WHERE id = ledger.evidence_id) AS level FROM ledger")!;
     assert.equal(row.amount_minor, 1235);
     assert.equal(row.level, 3);
+  } finally { done(); }
+});
+
+test("open spend cards hold their cap: two units cannot be promised more than the budget", async () => {
+  const driver = new ScriptedDriver(() => [{ type: "complete", result: { amount: 15, currency: "USD" } }]);
+  const { runtime, done } = setup(driver, undefined, ["mika", "ren"]);
+  try {
+    const { goal } = runtime.setGoal({ goal: "Stock the kit", kind: "hold", done_when: "never", budget: { monthly: 20, currency: "USD" } });
+    const first = ((await callTool(runtime, "spend", { unit: "mika", item: "gauze", goal, max: 15, currency: "USD" })).result as JobView).job;
+    await assert.rejects(callTool(runtime, "spend", { unit: "ren", item: "tape", goal, max: 15, currency: "USD" }), /HRT-4020 BUDGET_EXCEEDED remaining 5 USD/);
+    assert.deepEqual(runtime.budget(goal), { currency: "USD", monthly: 20, spent_this_month: 0, committed: 15, remaining: 5 });
+    const second = ((await callTool(runtime, "spend", { unit: "ren", item: "tape", goal, max: 5, currency: "USD" })).result as JobView).job;
+    assert.equal(runtime.budget(goal)!.remaining, 0);
+    runtime.cancel(second, "test");
+    assert.equal(runtime.budget(goal)!.remaining, 5);
+    runtime.answer(first, { file: { path: "receipt.jpg", kind: "document" } });
+    await runtime.settle();
+    assert.deepEqual(runtime.budget(goal), { currency: "USD", monthly: 20, spent_this_month: 15, committed: 0, remaining: 5 });
+  } finally { done(); }
+});
+
+test("a verdict that arrives after the lead cancels the goal changes nothing", async () => {
+  let release = () => {};
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const driver = new ScriptedDriver(async input => {
+    if (input.event !== "goal_check") return [{ type: "complete", result: { count: 3 } }];
+    await gate;
+    return [{ type: "complete", result: { accepted: true, reason: "on record", evidence: input.evidence.map(item => item.id) } }];
+  });
+  const { runtime, done } = setup(driver);
+  try {
+    const { goal } = runtime.setGoal({ goal: "G", kind: "reach", done_when: "x" });
+    const job = runtime.dispatch("observe", { instruction: "OBSERVE shelf", goal }).job;
+    runtime.answer(job, { text: "3" });
+    await runtime.settle();
+    const checking = runtime.closeGoal(goal, "done", "x on record");
+    assert.equal(checking.status, "checking");
+    assert.deepEqual(runtime.closeGoal(goal, "done", "again"), checking, "one check at a time");
+    await callTool(runtime, "goal_close", { goal, outcome: "cancelled", reason: "lead changed plans" });
+    release();
+    await runtime.settle();
+    assert.equal(runtime.goal(goal).status, "cancelled");
+    assert.equal(runtime.store.get<{ n: number }>("SELECT COUNT(*) AS n FROM events WHERE goal_id = ? AND kind = 'goal_closed'", goal)!.n, 1);
+  } finally { done(); }
+});
+
+test("only an accepting verdict that cites this goal's evidence closes it", async () => {
+  const verdicts: unknown[] = [
+    { accepted: false, reason: "insufficient" },
+    { reason: "looks fine" },
+    { accepted: true, reason: "looks fine" },
+    { accepted: true, reason: "on record", evidence: ["e_elsewhere"] }
+  ];
+  const driver = new ScriptedDriver(input => input.event === "goal_check"
+    ? [{ type: "complete", result: verdicts.shift() ?? { accepted: true, reason: "on record", evidence: input.evidence.map(item => item.id) } }]
+    : [{ type: "complete", result: { count: 3 } }]);
+  const { runtime, done } = setup(driver);
+  try {
+    const { goal } = runtime.setGoal({ goal: "G", kind: "reach", done_when: "x" });
+    const job = runtime.dispatch("observe", { instruction: "OBSERVE shelf", goal }).job;
+    runtime.answer(job, { text: "3" });
+    await runtime.settle();
+    const rejected = [];
+    for (let i = 0; i < 4; i++) {
+      const { result } = await callTool(runtime, "goal_close", { goal, outcome: "done", reason: "x" });
+      rejected.push((result as { status: string; rejected?: string }).status === "open" && (result as { rejected?: string }).rejected);
+      assert.equal(runtime.goal(goal).status, "active");
+    }
+    assert.deepEqual(rejected, ["not accepted: insufficient", "not accepted: looks fine", "not accepted: looks fine", "not accepted: on record"]);
+    assert.deepEqual((await callTool(runtime, "goal_close", { goal, outcome: "done", reason: "x" })).result, { goal, status: "done" });
   } finally { done(); }
 });
 
@@ -517,7 +588,7 @@ test("simulation: three weeks of a daily drill", async () => {
   const driver = new ScriptedDriver(input => {
     if (input.event === "goal_check") {
       const scores = input.evidence.length;
-      return scores >= 10 ? [{ type: "complete", result: { reason: `${scores} drill results on record` } }] : [{ type: "reject", text: "insufficient", reason: `only ${scores} results` }];
+      return scores >= 10 ? [{ type: "complete", result: { accepted: true, reason: `${scores} drill results on record`, evidence: input.evidence.map(item => item.id) } }] : [{ type: "reject", text: "insufficient", reason: `only ${scores} results` }];
     }
     const score = /score (\d+)/.exec(input.answer?.text ?? "");
     return score ? [{ type: "complete", result: { score: Number(score[1]) } }] : [{ type: "reply", text: "[MISSING FIELD] score" }];
@@ -645,13 +716,13 @@ test("with several units, upkeep warnings name the unit and count only its own c
       const slept = (await callTool(runtime, "sleep", { goal, unit, until: "07:00" })).result as JobView;
       runtime.answer(slept.job, { choice: "done" });
     }
-    assert.deepEqual(runtime.warnings(), ["ren meal: none recorded"]);
+    assert.deepEqual(runtime.warnings(), [], "ren never logged a meal: no meal warning for ren");
     assert.equal((await callTool(runtime, "since", { tool: "eat", unit: "ren" })).result.seconds, null);
     assert.equal((await callTool(runtime, "since", { tool: "eat" })).result.seconds, 0);
     clock.advance(6 * 3600 + 12 * 60);
-    assert.deepEqual(runtime.warnings(), ["mika meal: 6h12m ago", "ren meal: none recorded"]);
-    await callTool(runtime, "eat", { goal, unit: "ren" });
-    assert.deepEqual(runtime.briefing(goal).warnings, ["mika meal: 6h12m ago"], "ren's pending meal silences only ren's warning");
+    assert.deepEqual(runtime.warnings(), ["mika meal: 6h12m ago"]);
+    await callTool(runtime, "eat", { goal, unit: "mika" });
+    assert.deepEqual(runtime.briefing(goal).warnings, [], "mika's pending meal silences mika's warning");
     assert.deepEqual(runtime.briefing(goal).units.map(unit => unit.name), ["mika", "ren"]);
   } finally { done(); }
 });
