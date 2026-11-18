@@ -174,6 +174,7 @@ function calls(runtime: Runtime) {
       took_s: Math.max(0, Math.round(((row.ended_at ?? Date.now()) - row.started_at) / 1000)),
       response, ...(result && response?.result?.state !== row.job_state ? { result } : {}),
       reason: job?.reason ?? null, evidence: job?.evidence ?? [],
+      held: job?.held && row.job_state === "review" ? job.held : null,
       // What passed between the card, the unit and the driver. The agent never sees this part.
       rounds: (job?.rounds ?? []).map(round => ({
         at: round.at, card: round.card, rejected: round.rejected ?? null,
@@ -238,8 +239,9 @@ export async function ownerRequest(req: IncomingMessage, res: ServerResponse, op
     res.end(html);
   } else if (req.method === "GET" && path === "/owner/status") {
     const open = runtime.store.get<{ count: number }>("SELECT COUNT(*) AS count FROM jobs WHERE status = 'open'")?.count ?? 0;
+    const held = runtime.store.get<{ count: number }>("SELECT COUNT(*) AS count FROM jobs WHERE status = 'review' AND json_extract(data, '$.held') IS NOT NULL")?.count ?? 0;
     json(res, 200, { version: VERSION, units: unitRows(runtime, units), driver: backendLabel(options.driver),
-      brain: brainLabel(options.brain), open_jobs: open, calls: calls(runtime) });
+      brain: brainLabel(options.brain), open_jobs: open, held, calls: calls(runtime) });
   } else if (req.method === "GET" && path === "/owner/pair") {
     json(res, 200, await withQr(units.pairing(runtime.unit(url.searchParams.get("unit")).id)));
   } else if (req.method === "POST" && path === "/owner/pair/new") {

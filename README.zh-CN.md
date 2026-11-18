@@ -121,8 +121,11 @@ codex mcp remove human-use
 | `codex:gpt-6-luna:medium` | lead 的 ChatGPT 订阅，不带工具的 `codex exec` |
 | `ollama:<model>` | 本地模型 |
 | `openai:<model>@<base url>` | 任何兼容 OpenAI 的端点。密钥从 `HUMAN_USE_API_KEY` 读取 |
+| `none` | 不用 driver。回答本身已是结构化的卡（选择、清单、确认）照常发出；需要 driver 的卡在任何人花时间之前就以 `HRT-5030` 拒绝 |
 
 每次 driver 调用会把任务和本人的回答（最多两张照片）发给这个后端；用 `ollama` 时留在本机。其余一切都留在 `~/.human-use`，包括 driver 调用的日志。
+
+第一次发照片前，手机页面会写明照片存到哪里、由哪个后端读取；后端换了会再问一次。driver 连不上时，回答会保存下来：这次调用在 lead 页面上显示为 `held`，手机上显示已收到。runtime 会重试，间隔最长 15 分钟，driver 恢复后读取保存的回答。没有人需要重答这张卡。
 
 ## 开发
 

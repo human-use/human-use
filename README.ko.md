@@ -121,8 +121,11 @@ driver 백엔드는 `HUMAN_USE_DRIVER`나 runtime `config.json`의 `driver`로 �
 | `codex:gpt-6-luna:medium` | lead의 ChatGPT 구독. 도구 없는 `codex exec` |
 | `ollama:<model>` | 로컬 모델 |
 | `openai:<model>@<base url>` | 모든 OpenAI 호환 엔드포인트. 키는 `HUMAN_USE_API_KEY`에서 읽음 |
+| `none` | driver 없음. 답이 이미 구조화된 카드(선택, 체크리스트, 확인)는 그대로 나갑니다. driver가 필요한 카드는 누가 시간을 쓰기 전에 `HRT-5030`으로 거부됩니다 |
 
 driver 호출마다 작업과 본인의 답(사진은 최대 두 장)이 그 백엔드로 갑니다. `ollama`면 이 컴퓨터 밖으로 나가지 않습니다. 그 밖의 모든 것은 driver 호출 로그를 포함해 `~/.human-use`에 남습니다.
+
+첫 사진을 보내기 전에 휴대폰 페이지는 사진이 어디에 저장되고 어느 백엔드가 읽는지 알려 주고, 백엔드가 바뀌면 다시 묻습니다. driver에 닿지 못하면 답은 저장됩니다. 그 호출은 lead 페이지에 `held`로 표시되고, 휴대폰에는 받았다고 표시됩니다. runtime은 최대 15분 간격으로 다시 시도하고, driver가 돌아오면 저장된 답을 읽습니다. 아무도 카드에 다시 답하지 않습니다.
 
 ## 개발
 

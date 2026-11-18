@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -14,7 +15,7 @@ import { VERSION } from "../src/version.js";
 import { extractActions, buildContent } from "../src/driver.js";
 import { Store } from "../src/store.js";
 import { INPUTS } from "../src/tools.js";
-import { older } from "../src/mcp.js";
+import { ensureDaemon, isRuntimeCommand, older, stopDaemon } from "../src/mcp.js";
 
 test("installer writes only the selected driver and preserves existing config", async () => {
   const dir = mkdtempSync(join(tmpdir(), "human-use-"));
@@ -151,6 +152,64 @@ test("a newer package replaces an older resident runtime; stop asks the runtime 
   } finally {
     await daemon.stop();
     rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("an upgrade ends only a Human Use runtime; another program on the port is left running", async () => {
+  assert.equal(isRuntimeCommand('"C:\\Program Files\\nodejs\\node.exe" C:\\Users\\a\\.human-use\\app\\0.1.0\\node_modules\\human-use\\dist\\cli.js serve'), true);
+  assert.equal(isRuntimeCommand("node /home/a/.npm/_npx/1f2e/node_modules/human-use/dist/cli.js serve"), true);
+  assert.equal(isRuntimeCommand("node /srv/app/server.js serve"), false);
+  assert.equal(isRuntimeCommand("node /home/a/human-use/dist/cli.js mcp"), false);
+  assert.equal(isRuntimeCommand(null), false);
+
+  // A stand-in server: "foreign" answers like any web app, the others answer /health the way 0.1.0 did, without a stop route.
+  const server = `const http = require("http"); const kind = process.argv[2]; let posts = 0;
+http.createServer((req, res) => {
+  if (req.method === "POST") posts++;
+  res.writeHead(req.method === "POST" ? 404 : 200, { "content-type": "application/json" });
+  res.end(JSON.stringify(req.url === "/posts" ? { posts } : kind === "foreign" ? { ok: true } : { ok: true, version: "0.1.0", uptime_s: 5 }));
+}).listen(0, "127.0.0.1", function () { console.log(this.address().port); });`;
+  const dirs: string[] = [];
+  const start = async (path: string, arg: string) => {
+    mkdirSync(join(path, ".."), { recursive: true });
+    writeFileSync(path, server);
+    const child = spawn(process.execPath, [path, arg], { stdio: ["ignore", "pipe", "inherit"] });
+    const [chunk] = await once(child.stdout!, "data") as [Buffer];
+    return { child, port: chunk.toString().trim() };
+  };
+  const alive = (port: string) => fetch(`http://127.0.0.1:${port}/posts`).then(res => res.json() as Promise<{ posts: number }>, () => null);
+  const saved = process.env.HUMAN_USE_PORT;
+  const children: ReturnType<typeof spawn>[] = [];
+  try {
+    const other = mkdtempSync(join(tmpdir(), "hu-other-"));
+    dirs.push(other);
+
+    const foreign = await start(join(other, "app.js"), "foreign");
+    children.push(foreign.child);
+    process.env.HUMAN_USE_PORT = foreign.port;
+    await assert.rejects(ensureDaemon("never-started.js"), new RegExp(`Port ${foreign.port} is held by another program`));
+    assert.match(await stopDaemon(), /held by another program/);
+    assert.deepEqual(await alive(foreign.port), { posts: 0 }, "nothing was asked to stop, nothing was ended");
+
+    // Answers like 0.1.0 but is not one: its command line does not run Human Use.
+    const lookalike = await start(join(other, "server.js"), "serve");
+    children.push(lookalike.child);
+    process.env.HUMAN_USE_PORT = lookalike.port;
+    assert.match(await stopDaemon(), new RegExp(`held by another program \\(pid ${lookalike.child.pid}\\)`));
+    assert.ok(await alive(lookalike.port), "a lookalike is left running");
+
+    const old = mkdtempSync(join(tmpdir(), "hu-old-"));
+    dirs.push(old);
+    const runtime = await start(join(old, "app", "0.1.0", "node_modules", "human-use", "dist", "cli.js"), "serve");
+    children.push(runtime.child);
+    process.env.HUMAN_USE_PORT = runtime.port;
+    assert.equal(await stopDaemon(), "Stopped the runtime 0.1.0.");
+    assert.equal(await alive(runtime.port), null);
+  } finally {
+    if (saved === undefined) delete process.env.HUMAN_USE_PORT;
+    else process.env.HUMAN_USE_PORT = saved;
+    for (const child of children) child.kill();
+    for (const dir of dirs) rmSync(dir, { recursive: true, force: true });
   }
 });
 

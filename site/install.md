@@ -55,11 +55,17 @@ npx human-use config <key> <value>
 
 Settings are the lead's. Change one when the lead asks. A next-start setting applies after `npx human-use stop`; the next tool call starts the runtime again.
 
+## When the driver is missing or down
+
+With `driver` set to `none`, cards whose answer is already structured go out as usual: `choose`, `checklist`, `go`, `mood`, `eat`, `sleep`, `rest`, `act`, `remind`, `recharge`. Any other card is refused with `HRT-5030` before a unit spends time on it; tell the lead a driver is needed.
+
+If the driver cannot be reached after a unit answers, the job stays in review with `held`. The answer is saved, the runtime retries, and `wait` returns the result once the driver is back. Do not send the card again.
+
 ## What leaves the computer
 
 The runtime runs on this computer. Units, goals, answers, photos and a log of driver calls stay in `~/.human-use`.
 
-Each driver call sends the task and the unit's answer, with up to two photos, to the backend the lead chose. With `ollama` it stays on this computer.
+Each driver call sends the task and the unit's answer, with up to two photos, to the backend the lead chose. With `ollama` it stays on this computer. Before a unit's first photo, the phone page says where it goes and which backend reads it, and asks again after the backend changes.
 
 Phones reach the runtime through the relay at `unit.humanuse.dev`, which forwards end-to-end encrypted frames. It keeps channel ids and push subscriptions, never card text or photos. With `relay` set to `none`, phones pair to a direct address on the same Wi-Fi, without push notifications.
 

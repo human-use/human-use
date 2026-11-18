@@ -6,7 +6,7 @@ import { TelegramBot } from "./channels/telegram.js";
 import { WebChannel } from "./channels/web.js";
 import { config, DEFAULT_RELAY } from "./config.js";
 import { FileNotebook } from "./notebook.js";
-import { makeBrain, makeDriver, type BackendSpec } from "./backends.js";
+import { makeBrain, makeDriver, readerOf, type BackendSpec } from "./backends.js";
 import { localOwner, ownerRequest } from "./owner.js";
 import { dbPath, filesDir, home, port, webPort } from "./paths.js";
 import { HumanUseError, Runtime, type Brain, type Driver } from "./runtime.js";
@@ -90,7 +90,8 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<Daemon> 
   }
   const units = new UnitLinks({
     runtime, store, stateDir, web, filesDir: options.db ? stateDir : filesDir(),
-    relay: relayAddress && relayAddress !== "none" ? relayAddress : null, pushSend: options.pushSend
+    relay: relayAddress && relayAddress !== "none" ? relayAddress : null, pushSend: options.pushSend,
+    routing: (): { reader: string; local: boolean } => readerOf(lead.driver)
   });
   for (const unit of runtime.units()) units.attach(unit);
   runtime.channel = units.enabled ? units : null;
@@ -122,7 +123,7 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<Daemon> 
       return;
     }
     if (req.method === "GET" && req.url === "/health") {
-      send(200, { ok: true, version: VERSION, pid: process.pid, uptime_s: Math.round((Date.now() - started) / 1000) });
+      send(200, { ok: true, name: "human-use", version: VERSION, pid: process.pid, uptime_s: Math.round((Date.now() - started) / 1000) });
       return;
     }
     if (req.method === "POST" && req.url === "/stop" && options.onStopRequest) {

@@ -3,7 +3,7 @@ import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import { extname, join } from "node:path";
 import { runClaude } from "./claude.js";
 import { logsDir, promptPath, sandboxDir } from "./paths.js";
-import type { Driver, DriverInput } from "./runtime.js";
+import { DriverOutputError, type Driver, type DriverInput } from "./runtime.js";
 
 export type Block = { type: "text"; text: string } | { type: "image"; path: string; media: string };
 
@@ -33,8 +33,12 @@ export function buildContent(input: DriverInput): Block[] {
 export function extractActions(text: string): unknown {
   const start = text.indexOf("[");
   const end = text.lastIndexOf("]");
-  if (start < 0 || end <= start) throw new Error(`no JSON array in output: ${text.slice(0, 200)}`);
-  return JSON.parse(text.slice(start, end + 1));
+  if (start < 0 || end <= start) throw new DriverOutputError(`no JSON array in output: ${text.slice(0, 200)}`);
+  try {
+    return JSON.parse(text.slice(start, end + 1));
+  } catch (error) {
+    throw new DriverOutputError(`output is not JSON: ${(error as Error).message}`);
+  }
 }
 
 /** One line per driver call, for reading back what it did and what it cost. */

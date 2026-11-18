@@ -187,13 +187,13 @@ function showCalls(calls) {
     cells[2].textContent = call.job ?? "—";
     cells[3].textContent = call.tool;
     cells[4].textContent = call.task || JSON.stringify(call.args ?? {});
-    cells[5].textContent = call.state;
-    cells[5].className = ["escalated","error"].includes(call.state) ? "sig" : "";
+    cells[5].textContent = call.held ? "held" : call.state;
+    cells[5].className = call.held || ["escalated","error"].includes(call.state) ? "sig" : "";
     cells[8].textContent = call.took_s + "s";
     const { args, result, response, call_state, reason, evidence, rounds, compiled } = call;
     const view = JSON.stringify({ args, response, result, call_state, reason }, null, 2);
     summary.textContent = rounds.length ? "Trace" : reason ? "View details" : response || result ? "JSON" : "Parameters";
-    const display = view + JSON.stringify(rounds) + JSON.stringify(compiled);
+    const display = view + JSON.stringify(rounds) + JSON.stringify(compiled) + JSON.stringify(call.held);
     if (row.display === display) continue;
     row.display = display;
     raw.textContent = view;
@@ -231,6 +231,9 @@ function showTrace(trace, call) {
     line(round.at, index === 0 ? "CARD" : "DRIVER", round.card + (round.rejected ? `  · ${round.rejected}` : ""), index === 0 ? "" : round.rejected ? "driver rejected" : "driver");
     if (round.answered_at) line(round.answered_at, "UNIT", round.answer || "—", "unit");
   });
+  // The unit's answer is saved; the driver could not read it yet. Nobody has to answer again.
+  if (call.held) line(call.held.since, "HELD", "Answer saved; " + call.held.reason + " · tries " + call.held.tries
+    + (call.held.next_at ? " · next " + clock(call.held.next_at) : " · read when a driver is set"), "end sig");
   if (call.compiled) line(null, "RESULT", JSON.stringify(call.compiled), "end");
   else if (call.reason) line(null, call.state.toUpperCase(), call.reason, "end sig");
   if (!trace.childElementCount) line(null, "", "No card shown yet.", "quiet");
@@ -312,7 +315,7 @@ async function refreshStatus() {
     const status = await request("status");
     $("runtime-status").textContent = "Running";
     showUnits(status.units);
-    $("driver-status").textContent = status.driver;
+    $("driver-status").textContent = status.driver + (status.held ? " · " + status.held + " held" : "");
     $("brain-status").textContent = status.brain;
     $("open-count").textContent = String(status.open_jobs);
     for (const field of ["driver", "brain"]) $("settings").elements[field].placeholder = status[field];

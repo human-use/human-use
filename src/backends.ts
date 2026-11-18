@@ -41,6 +41,24 @@ function ollamaBase(): string {
   return `${(/^https?:\/\//.test(host) ? host : `http://${host}`).replace(/\/+$/, "")}/v1`;
 }
 
+/** Who reads a unit's answers and photos for this driver, in words the unit can check. `local`: nothing leaves the lead's computer. */
+export function readerOf(spec: BackendSpec): { reader: string; local: boolean } {
+  const { backend, model, base_url } = typeof spec === "string" || "backend" in spec || "driver" in spec ? parseBackend(spec) : { backend: "custom" };
+  const host = (url: string) => { try { return new URL(url).hostname; } catch { return url; } };
+  const loopback = (url: string) => ["127.0.0.1", "localhost", "[::1]", "::1"].includes(host(url));
+  switch (backend) {
+    case "none": return { reader: "none", local: true };
+    case "claude": return { reader: `Claude ${model ?? "haiku"}, Anthropic's service`, local: false };
+    case "codex": return { reader: `Codex ${model ?? "gpt-6-luna"}, OpenAI's service`, local: false };
+    case "ollama": {
+      const local = loopback(ollamaBase());
+      return { reader: `Ollama ${model ?? ""}`.trim() + (local ? " on the lead's computer" : ` at ${host(ollamaBase())}`), local };
+    }
+    case "openai": return { reader: `${model ?? "a model"} at ${base_url ? host(base_url) : "an OpenAI-compatible service"}`, local: !!base_url && loopback(base_url) };
+    default: return { reader: "a model the lead set", local: false };
+  }
+}
+
 export function makeDriver(spec: BackendSpec): Driver | null {
   const parsed = parseBackend(spec);
   const choice = { ...(parsed.model ? { model: parsed.model } : {}), ...(parsed.effort ? { effort: parsed.effort } : {}) };

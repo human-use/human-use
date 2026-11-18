@@ -35,6 +35,8 @@ export interface UnitLinksOptions {
   /** HTTPS relay origin, or null for LAN only. */
   relay: string | null;
   pushSend?: SendPush | undefined;
+  /** Who reads the unit's answers and photos: the current driver, told to the phone before its first photo. */
+  routing?: (() => { reader: string; local: boolean }) | undefined;
 }
 
 export const unitDir = (stateDir: string, unit: string) => join(stateDir, "units", unit);
@@ -66,9 +68,11 @@ export class UnitLinks implements Channel {
       name: unit.name,
       filesDir: this.options.filesDir,
       answer: (jobId, answer) => runtime.answer(jobId, answer),
+      ...(this.options.routing ? { routing: this.options.routing } : {}),
       counts: () => ({
         queued: store.get<{ n: number }>("SELECT COUNT(*) AS n FROM jobs WHERE status = 'queued' AND unit_id = ?", unit.id)!.n,
-        review: store.get<{ n: number }>("SELECT COUNT(*) AS n FROM jobs WHERE status = 'review' AND tool <> 'goal_check' AND unit_id = ?", unit.id)!.n
+        review: store.get<{ n: number }>("SELECT COUNT(*) AS n FROM jobs WHERE status = 'review' AND tool <> 'goal_check' AND unit_id = ?", unit.id)!.n,
+        held: store.get<{ n: number }>("SELECT COUNT(*) AS n FROM jobs WHERE status = 'review' AND tool <> 'goal_check' AND unit_id = ? AND json_extract(data, '$.held') IS NOT NULL", unit.id)!.n
       }),
       ...(push ? { onCard: (card: Card) => {
         void push.notify(card).catch(() => console.error("[human-use] could not save expired push registration"));

@@ -45,6 +45,9 @@ img.preview{max-width:100%;border:1px solid var(--ink)}
 #body video{width:100%;aspect-ratio:1;object-fit:cover;background:var(--ink);border:1px solid var(--ink)}
 #idle{flex:1;display:flex;flex-direction:column;justify-content:center;padding:16px}
 #idle .t1{margin-top:8px}
+.route{border:1px solid var(--rule);background:var(--surface);padding:12px;margin:12px 0}
+.route p{margin:6px 0}
+.route button{width:100%;margin-top:8px}
 #idle button{margin-top:32px;align-self:flex-start;background:none;border-color:var(--rule);font-size:13px}
 #push-settings:not(:empty){padding:0 16px 16px}
 footer button{border:0;background:none;padding:0;font:inherit;color:inherit;letter-spacing:inherit;text-transform:inherit}
@@ -522,6 +525,30 @@ async function stitch(shots) {
   return canvas.toDataURL("image/jpeg", 0.85);
 }
 
+// Before the first photo, and again whenever the lead changes the driver: who will see it. Kept per phone.
+var ROUTE_KEY = "human-use.photo-route";
+function routeSeen(reader) { try { return localStorage.getItem(ROUTE_KEY) === reader; } catch (error) { return false; } }
+function routeAccept(reader) { try { localStorage.setItem(ROUTE_KEY, reader); } catch (error) { /* asked again next time */ } }
+function confirmRoute(anchor, go) {
+  var route = latestState && latestState.routing;
+  if (!route || routeSeen(route.reader)) { go(); return; }
+  if (document.getElementById("route")) return;
+  var lines = [
+    "Saved on the lead's computer. The lead sees it on the lead page.",
+    route.reader === "none" ? "No driver is set. The photo waits there until the lead sets one."
+      : "Read by the driver: " + route.reader + "." + (route.local ? " It stays on that computer." : " It is sent to that service to be read."),
+    "The agent gets the fields it asked for, and can open the photo."
+  ];
+  var box = el("div", { id: "route", className: "route" }, el("div", { className: "lb", textContent: "Where this photo goes" }));
+  lines.forEach(function (line) { box.append(el("p", { textContent: line })); });
+  var send = button("SEND", function () { routeAccept(route.reader); box.remove(); anchor.hidden = false; go(); }, "primary");
+  var back = button("CANCEL", function () { box.remove(); anchor.hidden = false; }, "secondary");
+  box.append(send, back);
+  anchor.hidden = true;
+  anchor.after(box);
+  box.scrollIntoView({ block: "nearest" });
+}
+
 function capture(card, accept, label) {
   if (card.nonce) $("body").append(el("div", { className: "nonce", textContent: "LIVENESS: " + card.nonce }));
   var input = el("input", { type: "file", accept: accept, hidden: true });
@@ -537,7 +564,11 @@ function capture(card, accept, label) {
   var preview = el("img", { className: "preview", hidden: true, alt: "" });
   var note = el("textarea", { placeholder: "note (optional)" });
   var shots = [], data = null, fresh = true;
-  var send = button("SUBMIT", function () { if (data) submit(card, { file: data, fresh: fresh, text: note.value.trim() || undefined }); }, "primary");
+  var send = button("SUBMIT", function () {
+    if (!data) return;
+    var go = function () { submit(card, { file: data, fresh: fresh, text: note.value.trim() || undefined }); };
+    if (photos) confirmRoute(send, go); else go();
+  }, "primary");
   send.hidden = true;
   input.onchange = async function () {
     var file = input.files[0];
@@ -615,6 +646,8 @@ var KINDS = {
   }
 };
 
+var HELD_NOTICE = "RECEIVED · SAVED · READ WHEN THE DRIVER IS BACK · NOTHING TO RESEND";
+
 async function render(state) {
   latestState = state;
   var card = state.card;
@@ -628,7 +661,7 @@ async function render(state) {
     if (report) {
       pending = null;
       if (report.result) { showReport(report); return; }
-      terminalNotice = report.reason;
+      terminalNotice = report.held ? HELD_NOTICE : report.reason;
     } else if (card && card.job_id === sent.job_id && card.round > sent.round) pending = null;
     else if (!state.reports && (!card || card.job_id !== sent.job_id)) pending = null;
     else if (card && card.job_id !== sent.job_id && card.priority === "preempt") pending = null;
@@ -645,7 +678,10 @@ async function render(state) {
     $("round").textContent = "QUEUE " + state.queued;
     $("idle").hidden = false;
     $("idle").append(el("div", { className: "lb", textContent: "Status" }),
-      el("div", { className: "t1", textContent: state.review ? "Compiling" : "Nothing pending" }));
+      el("div", { className: "t1", textContent: state.held ? "Received" : state.review ? "Compiling" : "Nothing pending" }));
+    if (state.routing) $("idle").append(el("div", { className: "note mono", textContent: "Driver: " + state.routing.reader }));
+    if (state.held) $("idle").append(el("div", { className: "note", textContent: state.held + (state.held > 1 ? " answers" : " answer")
+      + " saved on the lead's computer. The driver reads " + (state.held > 1 ? "them" : "it") + (state.routing && state.routing.reader === "none" ? " once the lead sets one" : " when it is back") + ". Nothing to resend." }));
     if (lastReport) $("idle").append(el("div", { className: "note mono",
       textContent: lastReport.job_id + " · " + new Date(lastReport.at).toLocaleTimeString() }));
     $("idle").append(unpairButton());

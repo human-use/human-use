@@ -31,17 +31,29 @@ const failure = (message: string) => ({ isError: true as const, content: [{ type
 
 const base = () => `http://127.0.0.1:${port()}`;
 
-type Health = { version?: string; pid?: number };
+type Health = { name?: string; version?: string; pid?: number };
 
-async function health(): Promise<Health | null> {
+/**
+ * What answers on the runtime port: a Human Use runtime, another program, or nothing.
+ * A runtime names itself since 0.1.1; 0.1.0 answered with exactly ok, version and uptime_s.
+ */
+async function probe(): Promise<{ kind: "none" } | { kind: "other" } | { kind: "ours"; health: Health }> {
   try {
     const res = await fetch(`${base()}/health`, { signal: AbortSignal.timeout(1000) });
-    return res.ok ? await res.json().catch(() => ({})) as Health : null;
-  } catch {
-    return null;
+    const body = await res.json().catch(() => null) as Record<string, unknown> | null;
+    const ours = res.ok && body !== null && (body.name === "human-use"
+      || (body.ok === true && typeof body.version === "string" && typeof body.uptime_s === "number"));
+    return ours ? { kind: "ours", health: body as Health } : { kind: "other" };
+  } catch (error) {
+    // Only a refused connection means the port is free; a timeout or a reset means something else holds it.
+    const code = (error as { cause?: { code?: string } }).cause?.code;
+    return code === "ECONNREFUSED" ? { kind: "none" } : { kind: "other" };
   }
 }
-const healthy = async () => (await health()) !== null;
+const healthy = async () => (await probe()).kind === "ours";
+
+const occupied = (pid: number | null) =>
+  `Port ${port()} is held by another program${pid ? ` (pid ${pid})` : ""}. Human Use left it running. Free the port, or set HUMAN_USE_PORT in the agent software's entry for human-use.`;
 
 /** a < b for x.y.z versions; a missing version is older than any. */
 export function older(a: string | undefined, b: string): boolean {
@@ -58,7 +70,7 @@ async function listener(): Promise<number | null> {
     if (process.platform === "win32") {
       const { stdout } = await runProcess({ command: "netstat", args: ["-ano", "-p", "tcp"], stdin: "", cwd: tmpdir(), timeoutMs: 10_000 });
       const row = stdout.split(/\r?\n/).map(line => line.trim().split(/\s+/))
-        .find(cols => cols[1] === `127.0.0.1:${p}` && cols[3] === "LISTENING");
+        .find(cols => cols[1]?.endsWith(`:${p}`) && cols[3] === "LISTENING");
       return row ? Number(row[4]) || null : null;
     }
     const { stdout } = await runProcess({ command: "lsof", args: ["-nP", `-iTCP@127.0.0.1:${p}`, "-sTCP:LISTEN", "-t"], stdin: "", cwd: tmpdir(), timeoutMs: 10_000 });
@@ -68,14 +80,34 @@ async function listener(): Promise<number | null> {
   }
 }
 
-/** Stop the resident runtime: ask it, and end a runtime that has no stop route by its pid. */
+/** The command line of a process, or null when it cannot be read. */
+async function commandLine(pid: number): Promise<string | null> {
+  try {
+    const { stdout } = process.platform === "win32"
+      ? await runProcess({ command: "powershell.exe", args: ["-NoProfile", "-NonInteractive", "-Command", `(Get-CimInstance Win32_Process -Filter 'ProcessId=${pid}').CommandLine`], stdin: "", cwd: tmpdir(), timeoutMs: 15_000 })
+      : await runProcess({ command: "ps", args: ["-o", "command=", "-p", String(pid)], stdin: "", cwd: tmpdir(), timeoutMs: 10_000 });
+    return stdout.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+/** A process is ended by pid only when its command line is a Human Use runtime: `… human-use … serve`. */
+export const isRuntimeCommand = (line: string | null) => !!line && /human-use/i.test(line) && /\sserve(\s|$)/.test(line);
+
+/** Stop the resident runtime: ask it, and end a runtime that has no stop route by its pid. Another program on the port is left alone. */
 export async function stopDaemon(): Promise<string> {
-  const running = await health();
-  if (!running) return "The runtime is not running.";
-  const asked = await fetch(`${base()}/stop`, { method: "POST", signal: AbortSignal.timeout(2000) }).then(res => res.ok, () => false);
+  const found = await probe();
+  if (found.kind === "none") return "The runtime is not running.";
+  if (found.kind === "other") return occupied(await listener());
+  const running = found.health;
+  // 0.1.1 and later report their pid and take a stop request; 0.1.0 has neither.
+  const asked = running.pid !== undefined
+    && await fetch(`${base()}/stop`, { method: "POST", signal: AbortSignal.timeout(2000) }).then(res => res.ok, () => false);
   if (!asked) {
     const pid = running.pid ?? await listener();
     if (!pid || pid === process.pid) return `Could not stop the runtime on ${base()}: end its node process.`;
+    if (!isRuntimeCommand(await commandLine(pid))) return occupied(pid);
     try { process.kill(pid); } catch { return `Could not stop the runtime (pid ${pid}) on ${base()}: end its node process.`; }
   }
   for (let attempt = 0; attempt < 50; attempt++) {
@@ -93,9 +125,13 @@ let starting: Promise<void> | null = null;
  */
 export function ensureDaemon(script = process.argv[1]): Promise<void> {
   return starting ??= (async () => {
-    const running = await health();
-    if (running && !older(running.version, VERSION)) return;
-    if (running) await stopDaemon();
+    const found = await probe();
+    if (found.kind === "other") throw new Error(occupied(await listener()));
+    if (found.kind === "ours" && !older(found.health.version, VERSION)) return;
+    if (found.kind === "ours") {
+      const stopped = await stopDaemon();
+      if (await healthy()) throw new Error(stopped);
+    }
     if (!script) throw new Error("cannot locate the human-use entry point to start the daemon");
     const child = spawn(process.execPath, [...process.execArgv, script, "serve"], { detached: true, stdio: "ignore", windowsHide: true });
     child.unref();

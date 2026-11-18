@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { test } from "node:test";
 import { FileNotebook } from "../src/notebook.js";
-import { Runtime, interpolate, type Brain, type Card, type Channel, type JobView, type Driver, type DriverInput } from "../src/runtime.js";
+import { Runtime, interpolate, type Brain, type Card, type CardReport, type Channel, type JobData, type JobView, type Driver, type DriverInput } from "../src/runtime.js";
 import { Store } from "../src/store.js";
 import { callTool } from "../src/tools.js";
 
@@ -18,7 +18,9 @@ class FakeClock {
 class FakeChannel implements Channel {
   cards: Card[] = [];
   withdrawn: Array<{ job: string; reason: string; unit: string | null }> = [];
+  reports: CardReport[] = [];
   show(card: Card) { this.cards.push(card); }
+  report(report: CardReport) { this.reports.push(report); }
   withdraw(job: string, reason: string, unit: string | null) { this.withdrawn.push({ job, reason, unit }); }
   last() { return this.cards.at(-1)!; }
 }
@@ -727,3 +729,65 @@ test("with several units, upkeep warnings name the unit and count only its own c
   } finally { done(); }
 });
 
+test("an answer survives a driver outage: held, retried, read once the driver is back; nobody answers again", async () => {
+  let down = true;
+  const driver = new ScriptedDriver(input => {
+    if (down) throw new Error("connect ECONNREFUSED 127.0.0.1:11434");
+    return [{ type: "complete", result: { shelf: /empty/.test(input.answer?.text ?? "") ? "empty" : "stocked" } }];
+  });
+  const { runtime, channel, clock, store, done } = setup(driver);
+  const tries = (job: string) => (JSON.parse(store.get<{ data: string }>("SELECT data FROM jobs WHERE id = ?", job)!.data) as JobData).held?.tries;
+  try {
+    const { job } = runtime.dispatch("observe", { instruction: "look at the bread shelf" });
+    runtime.answer(job, { text: "the shelf is empty" });
+    await runtime.settle();
+    assert.equal(runtime.view(job).state, "review");
+    assert.match(runtime.view(job).held!, /answer saved; the driver could not be reached since/);
+    assert.deepEqual(channel.reports.map(report => [report.job_id, report.held]), [[job, true]], "the phone is told the answer arrived");
+    assert.equal(tries(job), 1);
+
+    runtime.tick(); await runtime.settle();
+    assert.equal(tries(job), 1, "no retry before its time");
+    clock.advance(31); runtime.tick(); await runtime.settle();
+    assert.equal(tries(job), 2, "retried while still down");
+    assert.equal(channel.reports.length, 1, "the phone is told once");
+
+    down = false;
+    clock.advance(61); runtime.tick(); await runtime.settle();
+    const back = runtime.view(job);
+    assert.equal(back.state, "done");
+    assert.deepEqual(back.result, { shelf: "empty" });
+    assert.equal(back.held, undefined);
+    assert.equal(channel.cards.filter(card => card.job_id === job).length, 1, "the card was shown once");
+    assert.equal(driver.inputs.at(-1)!.answer!.text, "the shelf is empty", "the driver read the saved answer");
+  } finally { done(); }
+});
+
+test("with no driver, cards only it could read are refused; an answer it must read waits until one is set", async () => {
+  const { runtime, channel, done } = setup(null);
+  try {
+    assert.throws(() => runtime.dispatch("observe", { instruction: "look" }), /HRT-5030 DRIVER_UNAVAILABLE .*observe\. Without one: choose, checklist/);
+    assert.throws(() => runtime.dispatch("choose", { instruction: "which", options: ["a", "b"], sudo: true }), /HRT-5030 DRIVER_UNAVAILABLE/);
+    const { job } = runtime.dispatch("choose", { instruction: "which loaf", options: ["left", "right"] });
+    runtime.answer(job, { choice: "failed", text: "both sold out" });
+    assert.match(runtime.view(job).held!, /the driver is not set since/);
+    assert.equal(channel.reports.at(-1)?.held, true);
+
+    runtime.driver = new ScriptedDriver(() => [{ type: "complete", result: { done: false, blocker: "sold out" } }]);
+    await runtime.settle();
+    assert.equal(runtime.view(job).state, "done");
+    assert.deepEqual(runtime.view(job).result, { done: false, blocker: "sold out" });
+    assert.equal(channel.cards.length, 1, "nobody answered again");
+  } finally { done(); }
+});
+
+test("a driver that answers with something other than actions escalates; it is not held", async () => {
+  const { runtime, done } = setup(new ScriptedDriver(() => "I think the shelf is empty"));
+  try {
+    const { job } = runtime.dispatch("observe", { instruction: "look at the shelf" });
+    runtime.answer(job, { text: "empty" });
+    await runtime.settle();
+    assert.equal(runtime.view(job).state, "escalated");
+    assert.equal(runtime.view(job).reason, "HRT-5031 COMPILE_FAILED");
+  } finally { done(); }
+});

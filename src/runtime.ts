@@ -83,6 +83,11 @@ export interface JobData {
   result?: Record<string, unknown> | undefined;
   reason?: string | undefined;
   evidence?: string[] | undefined;
+  /**
+   * The unit's answer is saved and waits for the driver, which is not set or could not be reached. Retried at
+   * `next_at` (null: when a driver is set); cleared once the driver reads it. Nobody answers the card again.
+   */
+  held?: { since: string; reason: string; tries: number; next_at: string | null } | undefined;
 }
 
 export interface Job {
@@ -167,6 +172,9 @@ export interface Driver {
   run(input: DriverInput): Promise<unknown>;
 }
 
+/** The model answered, with something that is not an action list. Any other error from a driver means it was not reached. */
+export class DriverOutputError extends Error {}
+
 /** Where the driver's notes live. Facts stay in the store; interpretation is the model's and has no schema. */
 export interface Notebook {
   read(pages?: readonly string[]): string;
@@ -193,6 +201,8 @@ export interface JobView {
   /** Local paths of the photos taken for this job. The driver reads them into result; the brain opens one only when it wants to look itself. */
   files?: string[] | undefined;
   reason?: string | undefined;
+  /** The unit answered; the answer is saved and waits for the driver. The card is not sent again. */
+  held?: string | undefined;
   wake_on_settle?: true | undefined;
 }
 
@@ -211,6 +221,8 @@ export interface CardReport {
   at: string;
   result?: Record<string, unknown> | undefined;
   reason?: string | undefined;
+  /** The answer arrived and is saved; the driver reads it later. The unit has nothing to resend. */
+  held?: true | undefined;
 }
 
 export interface Briefing {
@@ -297,6 +309,12 @@ const PIGGYBACK = 2;
 
 const id = (prefix: string) => `${prefix}_${randomUUID().replace(/-/g, "").slice(0, 10)}`;
 const requiresEvidence = (job: Job) => job.data.sudo === true || find(job.tool)?.category === "identity";
+/** Cards whose answer only the driver can read. Without one they are refused before a unit spends time on them. */
+const needsDriver = (tool: string, args: { sudo?: boolean | undefined; variant?: string | undefined }) =>
+  args.sudo === true || find(tool)?.category === "identity" || !DETERMINISTIC.has(CARD_KIND[tool]!) || PROCEDURAL.has(tool) && tool !== "recharge"
+  || tool === "recharge" && rechargeActivity(args.variant);
+const DRIVERLESS = Object.entries(CARD_KIND).filter(([tool]) => !needsDriver(tool, {})).map(([tool]) => tool).join(", ");
+const HELD_RETRY_MAX_S = 15 * 60;
 const fileEvidenceLevel = (file: NonNullable<Answer["file"]>) => file.kind === "document" ? 3 : file.captured === "upload" ? 6 : 4;
 const minorDigits = (currency: string) => new Intl.NumberFormat("en", { style: "currency", currency }).resolvedOptions().maximumFractionDigits ?? 2;
 const toMinor = (amount: number, currency: string) => Math.round(amount * 10 ** minorDigits(currency));
@@ -360,7 +378,7 @@ const OPEN_STATES = "('scheduled','queued','open','review')";
 export class Runtime {
   readonly store: Store;
   readonly clock: Clock;
-  driver: Driver | null;
+  private current: Driver | null;
   channel: Channel | null;
   brain: Brain | null;
   private readonly notebooks: ((unit: string) => Notebook | null) | null;
@@ -372,7 +390,7 @@ export class Runtime {
   constructor(options: RuntimeOptions) {
     this.store = options.store;
     this.clock = options.clock ?? systemClock;
-    this.driver = options.driver ?? null;
+    this.current = options.driver ?? null;
     this.channel = options.channel ?? null;
     this.brain = options.brain ?? null;
     this.notebooks = options.notebook ?? null;
@@ -382,6 +400,14 @@ export class Runtime {
 
   private now(): string {
     return this.clock.now().toISOString();
+  }
+
+  get driver(): Driver | null { return this.current; }
+
+  /** A driver set or changed while answers are held reads them at once. */
+  set driver(next: Driver | null) {
+    this.current = next;
+    if (next) this.retryHeld(true);
   }
 
   /** Wait for every driver call, channel send and brain wake started so far. Tests and shutdown use it. */
@@ -486,6 +512,9 @@ export class Runtime {
     if (args.goal) this.goal(args.goal);
     if (kind === "choice" && !(args.options && args.options.length >= 2)) throw new HumanUseError("HRT-4001", "choose needs at least two options");
     if (kind === "checklist" && !(args.steps && args.steps.length)) throw new HumanUseError("HRT-4001", "checklist needs steps");
+    if (!this.driver && needsDriver(tool, args)) {
+      throw new HumanUseError("HRT-5030", `DRIVER_UNAVAILABLE no driver is set to read the answer to ${tool}${args.sudo ? " (sudo)" : ""}. Without one: ${DRIVERLESS}. The lead sets one: npx human-use config driver <backend>`);
+    }
     if (tool === "spend" || (tool === "recharge" && (args.max ?? 0) > 0)) this.checkBudget(args);
 
     const now = this.now();
@@ -555,6 +584,7 @@ export class Runtime {
       ...(job.data.evidence?.length ? { evidence: job.data.evidence } : {}),
       ...(files.length ? { files } : {}),
       ...(job.data.reason ? { reason: job.data.reason } : {}),
+      ...(job.data.held && job.status === "review" ? { held: `answer saved; the driver ${this.driver ? "could not be reached" : "is not set"} since ${job.data.held.since}` } : {}),
       ...(job.data.wake_on_settle && !TERMINAL.has(job.status) ? { wake_on_settle: true as const } : {})
     };
   }
@@ -719,9 +749,9 @@ export class Runtime {
       const result = this.structured(saved, answer);
       if (result) { this.finish(saved, result, 6); this.pump(PIGGYBACK, job.unit_id); return; }
     }
-    this.saveJob(saved, { status: "review" });
+    const review = this.saveJob(saved, { status: "review" });
     if (!this.driver) {
-      this.store.event(this.now(), "driver_missing", job.id, job.goal_id);
+      this.hold(review, "no driver is set");
       this.pump(PIGGYBACK, job.unit_id);
       return;
     }
@@ -778,12 +808,17 @@ export class Runtime {
 
     const requestedPages = new Set<string>();
     for (let round = 0; ; round++) {
-      const { actions, failure } = await this.compile(input, actions =>
+      const { actions, failure, unreachable } = await this.compile(input, actions =>
         actions.length > 0 && actions.every(action =>
           action.type !== "notebook.rewrite" && (action.type !== "lookup" || actions.length === 1)
           && (job.tool !== "recharge" || this.rechargeActionFits(job, event, action))));
-      const current = this.job(jobId);
+      let current = this.job(jobId);
       if (current.status !== "review") return;
+      if (!actions && unreachable) { this.hold(current, failure); return; }
+      if (current.data.held) {
+        current = this.saveJob(current, { data: { ...current.data, held: undefined } });
+        this.store.event(this.now(), "driver_back", job.id, job.goal_id);
+      }
       const lookup = actions?.[0];
       if (lookup?.type === "lookup" && round < NOTEBOOK_LOOKUPS) {
         lookup.pages.forEach(page => requestedPages.add(page));
@@ -828,20 +863,54 @@ export class Runtime {
       && job.data.rounds.some(round => round.answer?.file);
   }
 
-  private async compile(input: DriverInput, accepts: (actions: Action[]) => boolean): Promise<{ actions: Action[] | null; failure: string }> {
+  /** `unreachable`: no attempt got an answer from the model, so nothing was decided about the unit's answer. */
+  private async compile(input: DriverInput, accepts: (actions: Action[]) => boolean): Promise<{ actions: Action[] | null; failure: string; unreachable: boolean }> {
     const driver = this.driver;
-    if (!driver) return { actions: null, failure: "driver unavailable" };
+    if (!driver) return { actions: null, failure: "no driver is set", unreachable: true };
     let failure = "";
+    let reached = false;
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
         const parsed = ActionsSchema.safeParse(await driver.run({ ...input }));
-        if (parsed.success && accepts(parsed.data)) return { actions: parsed.data, failure: "" };
+        reached = true;
+        if (parsed.success && accepts(parsed.data)) return { actions: parsed.data, failure: "", unreachable: false };
         failure = parsed.success ? "actions do not match the event" : parsed.error.message;
       } catch (error) {
+        if (error instanceof DriverOutputError) reached = true;
         failure = error instanceof Error ? error.message : String(error);
       }
     }
-    return { actions: null, failure };
+    return { actions: null, failure, unreachable: !reached };
+  }
+
+  /** Keep a job in review with its answer, to be read when the driver is back. Retries back off to every 15 minutes. */
+  private hold(job: Job, failure: string): void {
+    const tries = (job.data.held?.tries ?? 0) + 1;
+    const wait = Math.min(HELD_RETRY_MAX_S, 30 * 2 ** (tries - 1));
+    const held = { since: job.data.held?.since ?? this.now(), reason: (this.driver ? `the driver could not be reached: ${failure}` : "no driver is set").slice(0, 300), tries,
+      next_at: this.driver ? addSeconds(this.clock.now(), wait).toISOString() : null };
+    const saved = this.saveJob(job, { data: { ...job.data, held } });
+    if (tries > 1) return;
+    this.store.event(this.now(), this.driver ? "driver_unreachable" : "driver_missing", job.id, job.goal_id, { failure: held.reason });
+    this.report(saved, { held: true });
+  }
+
+  /** Hand held answers to the driver again: those due for a retry, or all of them when a driver was just set. */
+  private retryHeld(all = false): number {
+    if (!this.driver) return 0;
+    const now = this.now();
+    const rows = this.store.all<JobRow>(
+      `SELECT * FROM jobs WHERE status = 'review' AND json_extract(data, '$.held') IS NOT NULL
+       AND (? OR json_extract(data, '$.held.next_at') <= ?) ORDER BY updated_at`, all ? 1 : 0, now);
+    for (const row of rows) {
+      const job: Job = { ...row, data: JSON.parse(row.data) as JobData };
+      // No retry is scheduled while this one runs; a failure schedules the next.
+      this.saveJob(job, { data: { ...job.data, held: { ...job.data.held!, next_at: null } } });
+      const last = job.data.rounds.at(-1);
+      const event = job.tool === "goal_check" ? "goal_check" : last?.answer ? "answer" : "start";
+      this.track(this.consult(job.id, event, last?.answer ?? null), "driver.retry");
+    }
+    return rows.length;
   }
 
   /** Kept for the weekly review once the driver prompt supports its event. Each unit's notebook has its own week. */
@@ -983,7 +1052,7 @@ export class Runtime {
     this.report(job, { result: compiled });
   }
 
-  private report(job: Job, outcome: Pick<CardReport, "result" | "reason">): void {
+  private report(job: Job, outcome: Pick<CardReport, "result" | "reason" | "held">): void {
     if (job.data.rounds.at(-1)?.answer) this.channel?.report?.({
       job_id: job.id, unit: job.unit_id, round: job.data.rounds.length, at: this.now(), ...outcome
     });
@@ -1247,7 +1316,7 @@ export class Runtime {
     const since = goal.data.last_wake_at ?? null;
     const events = this.store.all<{ at: string; kind: string; ref: string | null; data: string }>(
       `SELECT at, kind, ref, data FROM events WHERE goal_id = ? AND (? IS NULL OR at > ?)
-       AND kind NOT IN ('card_shown','answer','job_created','compile_failed','driver_missing','overseer_missing','note','woken','brain_exit') ORDER BY seq DESC LIMIT 100`,
+       AND kind NOT IN ('card_shown','answer','job_created','compile_failed','driver_missing','driver_unreachable','driver_back','overseer_missing','note','woken','brain_exit') ORDER BY seq DESC LIMIT 100`,
       goalId, since, since).reverse().map(row => ({ ...row, data: JSON.parse(row.data) as unknown }));
     const notes = this.store.all<{ at: string; data: string }>("SELECT at, data FROM events WHERE goal_id = ? AND kind = 'note' ORDER BY seq", goalId)
       .map(row => ({ at: row.at, ...(JSON.parse(row.data) as { decision: string; reason: string; metric?: number; agenda?: string }) }));
@@ -1396,6 +1465,7 @@ export class Runtime {
       }
     });
 
+    this.retryHeld();
     this.pump();
     return counts;
   }

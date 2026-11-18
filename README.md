@@ -121,8 +121,11 @@ Set the driver's backend with `HUMAN_USE_DRIVER` or `driver` in the runtime's `c
 | `codex:gpt-6-luna:medium` | The lead's ChatGPT subscription, `codex exec` with no tools |
 | `ollama:<model>` | A local model |
 | `openai:<model>@<base url>` | Any OpenAI-compatible endpoint. The key is read from `HUMAN_USE_API_KEY` |
+| `none` | No driver. Cards whose answer is already structured (a choice, a checklist, a confirmation) still go out; a card that needs the driver is refused with `HRT-5030` before anyone spends time on it |
 
 Each driver call sends the task and the person's answer, with up to two photos, to that backend; `ollama` keeps it on this computer. Everything else stays in `~/.human-use`, including a log of driver calls.
+
+Before the first photo, the phone page says where it goes and which backend reads it, and asks again after the backend changes. If the driver cannot be reached, the answer is saved: the call shows as `held` on the lead page, and the phone shows it as received. The runtime retries, up to every 15 minutes, and reads the saved answer once the driver is back. Nobody answers the card again.
 
 ## Develop
 

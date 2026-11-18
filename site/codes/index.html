@@ -177,10 +177,10 @@ em{font:600 10.5px/1 var(--mono);font-style:normal;letter-spacing:.02em;border:1
   </section>
   <dl class="tb">
     <div><dt>Registry</dt><dd>HRT</dd></div>
-    <div><dt>Rev</dt><dd data-n="rev">0.1.0</dd></div>
+    <div><dt>Rev</dt><dd data-n="rev">0.1.2</dd></div>
     <div><dt>Codes</dt><dd data-n="codes">11</dd></div>
     <div><dt>Format</dt><dd>HRT-NNNN NAME detail</dd></div>
-    <div><dt>Updated</dt><dd data-n="updated">2026-11-17</dd></div>
+    <div><dt>Updated</dt><dd data-n="updated">2026-11-18</dd></div>
     <div><dt>Machine copy</dt><dd><a href="/codes.json">/codes.json</a></dd></div>
   </dl>
 
@@ -272,7 +272,7 @@ em{font:600 10.5px/1 var(--mono);font-style:normal;letter-spacing:.02em;border:1
       <i class="sl" title="HRT-5027 free"></i>
       <i class="sl" title="HRT-5028 free"></i>
       <i class="sl" title="HRT-5029 free"></i>
-      <a class="sl on edge" href="#HRT-5030" title="HRT-5030 VERIFIER_UNAVAILABLE"><span>30</span></a>
+      <a class="sl on edge" href="#HRT-5030" title="HRT-5030 VERIFIER_UNAVAILABLE / DRIVER_UNAVAILABLE"><span>30</span></a>
       <a class="sl on" href="#HRT-5031" title="HRT-5031 COMPILE_FAILED"><span>31</span></a>
       <i class="sl" title="HRT-5032 free"></i>
       <i class="sl" title="HRT-5033 free"></i>
@@ -386,18 +386,18 @@ em{font:600 10.5px/1 var(--mono);font-style:normal;letter-spacing:.02em;border:1
   </article>
   <h3 class="rh"><span>5030–5039</span>Driver</h3>
   <article class="code" id="HRT-5030">
-    <div class="cid"><a href="#HRT-5030"><small>HRT-</small>5030</a><code>VERIFIER_UNAVAILABLE</code><span class="arr"><em>error</em></span></div>
+    <div class="cid"><a href="#HRT-5030"><small>HRT-</small>5030</a><code>VERIFIER_UNAVAILABLE</code><code>DRIVER_UNAVAILABLE</code><span class="arr"><em>error</em></span></div>
     <dl>
-      <dt>When</dt><dd><code>goal_close</code> with <code>done</code>, and no driver is set. A goal closes as done only after a driver checks the evidence against <code>done_when</code>.</dd>
-      <dt>Agent</dt><dd>Leave the goal open and tell the lead a driver is needed.</dd>
-      <dt>Looks like</dt><dd><pre>HRT-5030 VERIFIER_UNAVAILABLE a goal closes as done only after its evidence is checked against done_when</pre></dd>
+      <dt>When</dt><dd>No driver is set. <code>goal_close</code> with <code>done</code> (<code>VERIFIER_UNAVAILABLE</code>): a goal closes as done only after a driver checks the evidence against <code>done_when</code>. A card whose answer only the driver can read (<code>DRIVER_UNAVAILABLE</code>): free text, photos, recordings, <code>sudo</code>; it is refused before a unit spends time on it. The message lists the card tools that work without one.</dd>
+      <dt>Agent</dt><dd>Use a card tool from the list, or leave the goal open, and tell the lead a driver is needed: <code>npx human-use config driver &lt;backend&gt;</code>.</dd>
+      <dt>Looks like</dt><dd><pre>HRT-5030 DRIVER_UNAVAILABLE no driver is set to read the answer to observe. Without one: choose, checklist, go, mood, eat, sleep, rest, act, remind, recharge. The lead sets one: npx human-use config driver &lt;backend&gt;</pre></dd>
       <dt>Since</dt><dd class="mono">0.1.0</dd>
     </dl>
   </article>
   <article class="code" id="HRT-5031">
     <div class="cid"><a href="#HRT-5031"><small>HRT-</small>5031</a><code>COMPILE_FAILED</code><span class="arr"><em>escalation</em></span></div>
     <dl>
-      <dt>When</dt><dd>The driver could not turn the unit's answer into the fields the agent asked for: it returned no usable action or hit its notebook lookup limit. Also raised when a card that needs the driver is sent with no driver set.</dd>
+      <dt>When</dt><dd>The driver answered but could not turn the unit's answer into the fields the agent asked for: it returned no usable action or hit its notebook lookup limit. A driver that cannot be reached raises nothing: the answer is saved, the job stays in review with <code>held</code>, and the driver reads it when it is back.</dd>
       <dt>Agent</dt><dd>Read the job, then send a simpler task or ask for fewer fields.</dd>
       <dt>Looks like</dt><dd><pre>{&quot;type&quot;: &quot;escalated&quot;, &quot;job&quot;: &quot;j_…&quot;, &quot;tool&quot;: &quot;observe&quot;, &quot;reason&quot;: &quot;HRT-5031 COMPILE_FAILED&quot;}</pre></dd>
       <dt>Since</dt><dd class="mono">0.1.0</dd>
@@ -440,6 +440,7 @@ em{font:600 10.5px/1 var(--mono);font-style:normal;letter-spacing:.02em;border:1
       <tbody>
 <!-- log:begin -->
 <tr><td class="mono">0.1.0</td><td class="mono">2026-11-17</td><td>First registry: 11 codes in 5 ranges. Card tools name a unit when more than one is paired.</td></tr>
+<tr><td class="mono">0.1.2</td><td class="mono">2026-11-18</td><td>HRT-5030 also covers cards that need a driver when none is set (DRIVER_UNAVAILABLE), refused at dispatch. An unreachable driver no longer raises HRT-5031: the answer is held until it is back.</td></tr>
 <!-- log:end -->
       </tbody>
     </table>

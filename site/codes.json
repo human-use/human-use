@@ -1,7 +1,7 @@
 {
   "registry": "HRT",
-  "rev": "0.1.0",
-  "updated": "2026-11-17",
+  "rev": "0.1.2",
+  "updated": "2026-11-18",
   "format": "HRT-NNNN NAME detail",
   "arrives": {
     "error": "The call fails. MCP result: {\"isError\": true, \"content\": [{\"type\": \"text\", \"text\": \"HRT-4020 BUDGET_EXCEEDED remaining 14.5 USD\"}]}",
@@ -195,12 +195,13 @@
     {
       "code": "HRT-5030",
       "names": [
-        "VERIFIER_UNAVAILABLE"
+        "VERIFIER_UNAVAILABLE",
+        "DRIVER_UNAVAILABLE"
       ],
       "arrives": "error",
-      "when": "`goal_close` with `done`, and no driver is set. A goal closes as done only after a driver checks the evidence against `done_when`.",
-      "agent": "Leave the goal open and tell the lead a driver is needed.",
-      "example": "HRT-5030 VERIFIER_UNAVAILABLE a goal closes as done only after its evidence is checked against done_when",
+      "when": "No driver is set. `goal_close` with `done` (`VERIFIER_UNAVAILABLE`): a goal closes as done only after a driver checks the evidence against `done_when`. A card whose answer only the driver can read (`DRIVER_UNAVAILABLE`): free text, photos, recordings, `sudo`; it is refused before a unit spends time on it. The message lists the card tools that work without one.",
+      "agent": "Use a card tool from the list, or leave the goal open, and tell the lead a driver is needed: `npx human-use config driver <backend>`.",
+      "example": "HRT-5030 DRIVER_UNAVAILABLE no driver is set to read the answer to observe. Without one: choose, checklist, go, mood, eat, sleep, rest, act, remind, recharge. The lead sets one: npx human-use config driver <backend>",
       "since": "0.1.0"
     },
     {
@@ -209,7 +210,7 @@
         "COMPILE_FAILED"
       ],
       "arrives": "escalation",
-      "when": "The driver could not turn the unit's answer into the fields the agent asked for: it returned no usable action or hit its notebook lookup limit. Also raised when a card that needs the driver is sent with no driver set.",
+      "when": "The driver answered but could not turn the unit's answer into the fields the agent asked for: it returned no usable action or hit its notebook lookup limit. A driver that cannot be reached raises nothing: the answer is saved, the job stays in review with `held`, and the driver reads it when it is back.",
       "agent": "Read the job, then send a simpler task or ask for fewer fields.",
       "example": "{\"type\": \"escalated\", \"job\": \"j_…\", \"tool\": \"observe\", \"reason\": \"HRT-5031 COMPILE_FAILED\"}",
       "since": "0.1.0"
@@ -220,7 +221,11 @@
       "rev": "0.1.0",
       "date": "2026-11-17",
       "note": "First registry: 11 codes in 5 ranges. Card tools name a unit when more than one is paired."
-
+    },
+    {
+      "rev": "0.1.2",
+      "date": "2026-11-18",
+      "note": "HRT-5030 also covers cards that need a driver when none is set (DRIVER_UNAVAILABLE), refused at dispatch. An unreachable driver no longer raises HRT-5031: the answer is held until it is back."
     }
   ]
 }

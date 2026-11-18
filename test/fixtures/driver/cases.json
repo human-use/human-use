@@ -33,7 +33,7 @@
   {
     "id": "eggs-final-missing", "tool": "errand", "instruction": "ERRAND 超市: 买鸡蛋",
     "want": {"eggs": "买到的鸡蛋数"}, "answer": {"text": "还是没有数"}, "rounds_left": 0,
-    "expected": {"type": "complete", "result": {"eggs": null}}
+    "expected": {"type": "complete", "result": {"eggs": null}, "keys": ["missing"]}
   },
   {
     "id": "eggs-explicit-zero", "tool": "errand", "instruction": "ERRAND 超市: 买鸡蛋",

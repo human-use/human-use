@@ -1,6 +1,6 @@
 {
   "name": "human-use",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "mcpName": "dev.humanuse/human-use",
   "description": "A device driver for a person. An MCP server: the agent calls a tool, a card prints on a person's phone, and the agent gets JSON back.",
   "license": "MIT",

@@ -11,7 +11,9 @@ export interface PhoneOptions {
   name?: string;
   filesDir: string;
   answer(jobId: string, answer: Answer): void;
-  counts(): { queued: number; review: number };
+  counts(): { queued: number; review: number; held: number };
+  /** Who reads the unit's answers and photos. */
+  routing?(): { reader: string; local: boolean };
   onCard?(card: Card): void;
   /** The person unpaired this phone. */
   unpair?(): Promise<void>;
@@ -77,6 +79,7 @@ export class PhoneChannel implements Channel {
       theater: this.theater.map(entry => ({ id: entry.card.job_id, title: entry.card.title, text: entry.card.text, seconds: entry.card.seconds ?? 4 })),
       reports: this.reports,
       notice: this.notice && now - this.notice.at < 15_000 ? this.notice.text : null,
+      routing: this.options.routing?.() ?? null,
       ...this.options.counts()
     };
   }
