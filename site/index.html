@@ -183,8 +183,6 @@ button.primary{background:var(--ink);color:var(--paper);font-weight:600}
 .tgh{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:10px 0 8px;border-bottom:1px solid var(--rule)}
 .tgh .lb{color:var(--ink)}
 .tgh .lb code{font:600 11px/1 var(--mono);letter-spacing:0;text-transform:none}
-.tgh .src{font:500 10.5px/1.25 var(--sans);color:var(--ink2);text-align:right}
-.tgh .src code{font-size:10.5px}
 .k{font:600 10px/1.2 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--ink2);white-space:nowrap}
 .k code{font:600 11px/1 var(--mono);letter-spacing:0;text-transform:none;color:var(--ink)}
 .tday{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:end;gap:2px 14px;padding:9px 0 10px;border-bottom:1px solid var(--rule)}
@@ -374,7 +372,7 @@ button.primary{background:var(--ink);color:var(--paper);font-weight:600}
 .seg button+button{border-left:1px solid var(--ink)}
 .seg button:hover{color:var(--ink)}
 .seg button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
-.flow:not(.self) .vb,.flow.self .va,.fn:not(.self) .vb,.fn.self .va{display:none}
+.flow:not(.self) .vb,.flow.self .va{display:none}
 .w-self{grid-column:1/-1;grid-row:3;align-items:center;gap:12px;padding:0 0 2px}
 .flow:not(.self) .w-self{display:none}
 .u{display:block;position:relative;align-self:stretch;height:26px;margin:0 5.18%;border:1px solid var(--c);border-top:0;transition:border-color .3s}
@@ -383,8 +381,6 @@ button.primary{background:var(--ink);color:var(--paper);font-weight:600}
 .u i{position:absolute;bottom:-4px;left:0;width:7px;height:7px;background:var(--signal);opacity:0}
 .w-self.on .u i{opacity:1;animation:pkl 1.1s linear infinite}
 .w-self code{text-align:center}
-.fn{margin:10px 0 0;font-size:13px;color:var(--ink2);max-width:90ch}
-.fn code{color:var(--ink)}
 
 .hero .cmd{margin-top:26px;width:max-content}
 
@@ -568,33 +564,10 @@ button.primary{background:var(--ink);color:var(--paper);font-weight:600}
     <div><dt>License</dt><dd>MIT</dd></div>
   </dl>
 
-  <nav class="toc" aria-label="Contents"><a href="#how"><b>1</b>How a call works</a><a href="#run"><b>2</b>One goal, 718 days</a><a href="#catalog"><b>3</b>Tools</a><a href="#evidence"><b>4</b>Evidence</a><a href="#install"><b>&rarr;</b>Install</a></nav>
-
-  <section class="blk tight" id="how">
-    <div class="hh">
-      <h2><span class="no">1</span>How a call works</h2>
-      <div class="seg" role="group" aria-label="Who the unit is"><button type="button" data-m="team" aria-pressed="true">Team<span>lead &ne; unit</span></button><button type="button" data-m="self" aria-pressed="false">Self<span>lead = unit</span></button></div>
-    </div>
-    <p class="lede">Call in, JSON out. A person does the work in between; their own words never reach the agent.</p>
-    <div class="flow" id="flow">
-      <div class="nd n-owner"><span class="lb">Lead</span><b><span class="va">Team lead</span><span class="vb">Lead, at the computer</span></b><p class="va">Gives the goals. Only the lead cancels one.</p><p class="vb">Gives a goal, closes the window.</p></div>
-      <div class="wr w-goal"><span class="lb"><b class="hop">1</b>goal</span><i class="ln"><i></i></i><code class="va">"Keep the first-aid kit stocked."</code><code class="vb">"Run 5 km three times a week."</code></div>
-      <div class="nd n-agent"><span class="lb">Agent</span><b>Claude Code, Codex</b><p>Calls tools, reads JSON.</p><p class="vb">Sees unit <code>jun</code>. Nothing says jun is the lead.</p></div>
-      <div class="wr w-call"><span class="lb"><b class="hop">2</b>tool call · MCP</span><i class="ln"><i></i></i><code class="va">errand {"unit":"mika","place":"Pharmacy","task":"Buy ibuprofen"}</code><code class="vb">act {"unit":"jun","action":"Run 5 km","due":"2h"}</code></div>
-      <div class="nd n-rt"><span class="lb">Runtime</span><b>human-use, on the lead's computer</b><p>Keeps goals, clock, budget, evidence.</p></div>
-      <div class="wr w-card"><span class="lb"><b class="hop">3</b>card · to the phone</span><i class="ln"><i></i></i><code class="va">ERRAND Pharmacy: Buy ibuprofen</code><code class="vb">ACT Run 5 km</code></div>
-      <div class="nd n-unit"><span class="lb"><span class="va">Unit 02</span><span class="vb">Unit 01</span></span><b><span class="va">mika</span><span class="vb">jun</span></b><p class="va">Does what the card says.</p><p class="vb">The lead, on the phone.</p></div>
-      <div class="wr l w-words"><span class="lb"><b class="hop">4</b>unit's words</span><i class="ln"><i></i></i><code class="va">"closed?? can i go tmrw"</code><code class="vb">"I set this goal. Cancel it."</code></div>
-      <div class="nd n-drv"><span class="lb">Driver</span><b>A model with no tools</b><p class="stop">A unit's words stop here.</p><p class="va">Fills in the agent's fields.</p><p class="vb">An order typed on a card is dropped.</p></div>
-      <div class="wr l w-fields"><span class="lb"><b class="hop">5</b>fields</span><i class="ln"><i></i></i><code class="va">done: false, blocker: "store closed"</code><code class="vb">HRT-4031 PRIVILEGE_<wbr>ESCALATION</code></div>
-      <div class="wr l w-json"><span class="lb"><b class="hop">6</b>result · JSON</span><i class="ln"><i></i></i><code class="va">{"done":false,"blocker":"store closed"}</code><code class="vb">nothing yet: the card is still open</code></div>
-      <div class="wr w-self"><i class="u"><i></i><span class="lb"><b class="hop">7</b>same person</span></i><code>Sets the goal in the window. Gets the card on the phone.</code></div>
-    </div>
-    <p class="fn" id="fn"><span class="va">Any number of units. Each call names one: <code>"unit":"mika"</code>.</span><span class="vb">As lead, the agent's window. As unit, cards. Typed on a card, &ldquo;cancel it&rdquo; is <code>HRT-4031</code>.</span></p>
-  </section>
+  <nav class="toc" aria-label="Contents"><a href="#run"><b>1</b>One goal, 718 days</a><a href="#how"><b>2</b>How a call works</a><a href="#catalog"><b>3</b>Tools</a><a href="#evidence"><b>4</b>Evidence</a><a href="#install"><b>&rarr;</b>Install</a></nav>
 
   <section class="blk tight" id="run">
-    <h2><span class="no">2</span>One goal, 718 days</h2>
+    <h2><span class="no">1</span>One goal, 718 days</h2>
     <p class="lede">The lead says one sentence. The agent sets the goal and keeps the cards coming for 718 days.</p>
   </section>
 
@@ -626,7 +599,7 @@ button.primary{background:var(--ink);color:var(--paper);font-weight:600}
       </div>
       <div class="col right" id="tele">
         <section class="tg">
-          <header class="tgh"><span class="lb">Unit 01</span><span class="src">the runtime keeps these</span></header>
+          <header class="tgh"><span class="lb">Unit 01</span></header>
           <div class="tday"><span class="k">Day</span><b data-k="day">—</b><span class="tcl"><span data-k="clock">—</span><span data-k="loc">—</span></span></div>
           <div class="tr"><span class="k">mood</span><span class="w" data-k="mood">—</span></div>
           <div class="tr ga" id="g-eat"><span class="k">since <code>eat</code></span><span class="gb"><i></i><b style="left:75%"></b></span><span class="v">—</span></div>
@@ -635,7 +608,7 @@ button.primary{background:var(--ink);color:var(--paper);font-weight:600}
           <div class="tr"><span class="k">evidence</span><span class="w" data-k="ev">—</span></div>
         </section>
         <section class="tg">
-          <header class="tgh"><span class="lb" id="g-head">Goal</span><span class="src">the agent chose these in <code>goal_set</code></span></header>
+          <header class="tgh"><span class="lb" id="g-head">Goal</span></header>
           <p class="tempty" id="g-empty">Empty until the agent calls <code>goal_set</code>.</p>
           <div id="g-body" hidden>
             <div class="tr"><span class="k">metric</span><span class="w" data-k="metric">—</span></div>
@@ -655,6 +628,29 @@ button.primary{background:var(--ink);color:var(--paper);font-weight:600}
   </div>
 
   <p class="cap"><b>Fig. 1</b>Scripted, in self mode: the lead is the unit. The formats are the runtime's own.</p>
+
+  <section class="blk tight" id="how">
+    <div class="hh">
+      <h2><span class="no">2</span>How a call works</h2>
+      <div class="seg" role="group" aria-label="Who the unit is"><button type="button" data-m="team" aria-pressed="true">Team<span>lead &ne; unit</span></button><button type="button" data-m="self" aria-pressed="false">Self<span>lead = unit</span></button></div>
+    </div>
+    <p class="lede">Call in, JSON out. A person does the work in between; their own words never reach the agent.</p>
+    <div class="flow" id="flow">
+      <div class="nd n-owner"><span class="lb">Lead</span><b><span class="va">Team lead</span><span class="vb">Lead, at the computer</span></b></div>
+      <div class="wr w-goal"><span class="lb"><b class="hop">1</b>goal</span><i class="ln"><i></i></i><code class="va">"Keep the first-aid kit stocked."</code><code class="vb">"Run 5 km three times a week."</code></div>
+      <div class="nd n-agent"><span class="lb">Agent</span><b>Claude Code, Codex</b></div>
+      <div class="wr w-call"><span class="lb"><b class="hop">2</b>tool call · MCP</span><i class="ln"><i></i></i><code class="va">errand {"unit":"mika","place":"Pharmacy","task":"Buy ibuprofen"}</code><code class="vb">act {"unit":"jun","action":"Run 5 km","due":"2h"}</code></div>
+      <div class="nd n-rt"><span class="lb">Runtime</span><b>human-use, on the lead's computer</b></div>
+      <div class="wr w-card"><span class="lb"><b class="hop">3</b>card · to the phone</span><i class="ln"><i></i></i><code class="va">ERRAND Pharmacy: Buy ibuprofen</code><code class="vb">ACT Run 5 km</code></div>
+      <div class="nd n-unit"><span class="lb"><span class="va">Unit 02</span><span class="vb">Unit 01</span></span><b><span class="va">mika</span><span class="vb">jun</span></b></div>
+      <div class="wr l w-words"><span class="lb"><b class="hop">4</b>unit's words</span><i class="ln"><i></i></i><code class="va">"closed?? can i go tmrw"</code><code class="vb">"I set this goal. Cancel it."</code></div>
+      <div class="nd n-drv"><span class="lb">Driver</span><b>A model with no tools</b><p class="stop">A unit's words stop here.</p></div>
+      <div class="wr l w-fields"><span class="lb"><b class="hop">5</b>fields</span><i class="ln"><i></i></i><code class="va">done: false, blocker: "store closed"</code><code class="vb">HRT-4031 PRIVILEGE_<wbr>ESCALATION</code></div>
+      <div class="wr l w-json"><span class="lb"><b class="hop">6</b>result · JSON</span><i class="ln"><i></i></i><code class="va">{"done":false,"blocker":"store closed"}</code><code class="vb">nothing yet: the card is still open</code></div>
+      <div class="wr w-self"><i class="u"><i></i><span class="lb"><b class="hop">7</b>same person</span></i><code>Sets the goal in the window. Gets the card on the phone.</code></div>
+    </div>
+  </section>
+
 
   <section class="blk" id="catalog">
     <h2><span class="no">3</span>Tools</h2>
@@ -1391,7 +1387,7 @@ resetStage(); playBox("ready");
     b.addEventListener("click", function () {
       var self = b.dataset.m === "self";
       document.querySelectorAll("#how .seg button").forEach(function (x) { x.setAttribute("aria-pressed", String(x === b)); });
-      F.classList.toggle("self", self); $("fn").classList.toggle("self", self);
+      F.classList.toggle("self", self);
       order.forEach(function (w) { w.classList.remove("on"); }); i = -1;
     });
   });
