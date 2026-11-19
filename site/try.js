@@ -67,6 +67,7 @@ async function start() {
   const mine = {};
   session = mine;
   $("ty-log").replaceChildren();
+  $("side").classList.remove("live");
   $("ty-again").hidden = true;
   status("connecting");
   const channel = randomId();
@@ -149,6 +150,7 @@ async function start() {
       if (!phoneSeen) {
         phoneSeen = true;
         status("phone connected");
+        $("side").classList.add("live");
         if (step < 0) call();
       }
       const asked = typeof packet.version === "number" ? packet.version : 0;
